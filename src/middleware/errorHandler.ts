@@ -1,44 +1,38 @@
-// src/middleware/errorHandler.ts
-import {
-  NextFunction,
-  Request,
-  Response,
-} from 'express';
-import { httpLogger } from '../lib/logger';
-import { AppError } from '../errors/AppError';
-import { env } from '../config/env';
+import { NextFunction, Request, Response } from "express";
+import { httpLogger } from "../lib/logger";
+import { AppError } from "../errors/AppError";
+import { env } from "../config/env";
 
-export function errorHandler(
-  err: unknown,
-  req: Request,
-  res: Response,
-  _next: NextFunction,
-) {
-  const isDev = env.nodeEnv !== 'production';
-  const requestId = (req as any).requestId;
+type RequestWithId = Request & {
+  requestId?: string;
+};
+
+export function errorHandler(err: unknown, req: RequestWithId, res: Response, _next: NextFunction) {
+  void _next;
+
+  const isDev = env.nodeEnv !== "production";
+  const requestId = req.requestId;
 
   let appError: AppError;
 
   if (err instanceof AppError) {
     appError = err;
   } else {
-    appError = new AppError('Internal server error', {
+    appError = new AppError("Internal server error", {
       statusCode: 500,
-      code: 'INTERNAL_ERROR',
+      code: "INTERNAL_ERROR",
       isOperational: false,
     });
   }
 
   httpLogger.error({
-    msg: 'Unhandled error in request',
+    msg: "Unhandled error in request",
     requestId,
     statusCode: appError.statusCode,
     code: appError.code,
     details: appError.details,
     originalError:
-      err instanceof Error
-        ? { name: err.name, message: err.message, stack: err.stack }
-        : err,
+      err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
   });
 
   const responseBody: Record<string, unknown> = {

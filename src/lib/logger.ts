@@ -1,27 +1,27 @@
-import fs from 'fs';
-import path from 'path';
-import pino from 'pino';
-import { env } from '../config/env';
+import fs from "fs";
+import path from "path";
+import pino from "pino";
+import { env } from "../config/env";
 
 const targets: pino.TransportTargetOptions[] = [];
 
 if (env.logPretty) {
   targets.push({
     level: env.logLevel,
-    target: 'pino-pretty',
+    target: "pino-pretty",
     options: {
       colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname',
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
     },
   });
 }
 
 if (env.logToFile) {
   const baseDir = path.resolve(process.cwd(), env.logDir);
-  const infoDir = path.join(baseDir, 'info');
-  const warnDir = path.join(baseDir, 'warn');
-  const errorDir = path.join(baseDir, 'error');
+  const infoDir = path.join(baseDir, "info");
+  const warnDir = path.join(baseDir, "warn");
+  const errorDir = path.join(baseDir, "error");
 
   [baseDir, infoDir, warnDir, errorDir].forEach((dir) => {
     if (!fs.existsSync(dir)) {
@@ -31,26 +31,26 @@ if (env.logToFile) {
 
   targets.push(
     {
-      level: 'info',
-      target: 'pino/file',
+      level: "info",
+      target: "pino/file",
       options: {
-        destination: path.join(infoDir, 'info.log'),
+        destination: path.join(infoDir, "info.log"),
         mkdir: true,
       },
     },
     {
-      level: 'warn',
-      target: 'pino/file',
+      level: "warn",
+      target: "pino/file",
       options: {
-        destination: path.join(warnDir, 'warn.log'),
+        destination: path.join(warnDir, "warn.log"),
         mkdir: true,
       },
     },
     {
-      level: 'error',
-      target: 'pino/file',
+      level: "error",
+      target: "pino/file",
       options: {
-        destination: path.join(errorDir, 'error.log'),
+        destination: path.join(errorDir, "error.log"),
         mkdir: true,
       },
     },
@@ -61,10 +61,10 @@ const loggerInstance = pino({
   level: env.logLevel,
   transport: targets.length
     ? {
-      targets,
-    }
+        targets,
+      }
     : undefined,
 });
 
 export const logger = loggerInstance;
-export const httpLogger = logger.child({ module: 'http' });
+export const httpLogger = logger.child({ module: "http" });
