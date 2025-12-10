@@ -1,0 +1,43 @@
+{
+  "name": "decomplex-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write .",
+    "format:all": "npm run format && npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyomay1999/decomplex-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Tyomay1999/decomplex-backend/issues"
+  },
+  "homepage": "https://github.com/Tyomay1999/decomplex-backend#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "joi": "^18.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.4",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0"
+  }
+}
