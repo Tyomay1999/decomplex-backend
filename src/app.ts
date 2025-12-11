@@ -1,8 +1,12 @@
-import path from "path";
 import express from "express";
 import cors from "cors";
+import path from "path";
 import helmet from "helmet";
+import fileUpload from "express-fileupload";
+import swaggerUi from "swagger-ui-express";
+
 import { env } from "./config/env";
+import { swaggerSpec } from "./config/swagger";
 import { requestIdMiddleware } from "./middleware/requestId";
 import { requestLogger } from "./middleware/requestLogger";
 import { notFoundHandler } from "./middleware/notFoundHandler";
@@ -10,7 +14,6 @@ import { errorHandler } from "./middleware/errorHandler";
 import { authMiddleware } from "./middleware/auth";
 import { attachMockUserMiddleware } from "./middleware/attachMockUser";
 import { saveUserFileMiddleware } from "./middleware/saveUserFile";
-import fileUpload from "express-fileupload";
 
 export const app = express();
 
@@ -31,6 +34,16 @@ app.use("/static", express.static(staticRoot));
 
 app.use(requestIdMiddleware);
 app.use(requestLogger);
+
+if (env.nodeEnv !== "production") {
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+    }),
+  );
+}
 
 app.post("/api", authMiddleware, attachMockUserMiddleware, saveUserFileMiddleware, (_req, res) => {
   res.json({ status: "ok" });

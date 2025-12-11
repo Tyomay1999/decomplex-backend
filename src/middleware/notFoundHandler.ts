@@ -1,4 +1,3 @@
-// src/middleware/notFoundHandler.ts
 import { Request, Response, NextFunction } from "express";
 import { NotFoundError } from "../errors/NotFoundError";
 
