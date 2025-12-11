@@ -10,7 +10,7 @@ export async function initRedis(): Promise<RedisClientType> {
   }
 
   redisClient = createClient({
-    url: env.REDIS_URL,
+    url: env.redisUrl,
   });
 
   redisClient.on("error", (err) => {
@@ -31,10 +31,6 @@ export function getRedisClient(): RedisClientType {
   }
   return redisClient;
 }
-
-/**
- * Удобные helpers для хранения JSON.
- */
 
 export async function redisSetJson(
   key: string,

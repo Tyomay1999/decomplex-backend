@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .ts",
     "test": "cross-env NODE_ENV=test jest",
     "format": "prettier --write .",
-    "format:all": "npm run format && npm run lint"
+    "typecheck": "tsc --noEmit",
+    "format:all": "npm run format && npm run lint && npm run typecheck"
   },
   "repository": {
     "type": "git",
@@ -46,10 +47,18 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/amqplib": "^0.10.8",
+    "@types/cors": "^2.8.19",
+    "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.6",
     "@types/express-fileupload": "^1.5.1",
+    "@types/joi": "^17.2.2",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.10.2",
+    "@types/node": "^24.10.3",
+    "@types/nodemailer": "^7.0.4",
+    "@types/on-finished": "^2.3.5",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
     "eslint": "^9.39.1",

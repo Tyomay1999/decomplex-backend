@@ -13,6 +13,8 @@ const envSchema = Joi.object({
   LOG_TO_FILE: Joi.boolean().default(false),
   LOG_DIR: Joi.string().default("logs"),
   STATIC_DIR: Joi.string().default("static"),
+  DEFAULT_LOCALE: Joi.string().valid("am", "ru", "en").default("en"),
+
   STATIC_DEFAULT_FOLDER: Joi.string().default("images"),
   UPLOAD_MAX_FILE_SIZE_MB: Joi.number().default(10),
   JWT_SECRET: Joi.string().required(),
@@ -53,6 +55,7 @@ export const env = {
   nodeEnv: envVars.NODE_ENV as string,
   port: envVars.PORT as number,
   logLevel: envVars.LOG_LEVEL as string,
+  defaultLocale: envVars.DEFAULT_LOCALE as string,
   logPretty: envVars.LOG_PRETTY as boolean,
   logToFile: envVars.LOG_TO_FILE as boolean,
   logDir: envVars.LOG_DIR as string,
@@ -64,8 +67,15 @@ export const env = {
   rabbitMQUrl: envVars.RABBITMQ_URL as string,
   emailQueue: envVars.RABBITMQ_EMAIL_QUEUE as string,
   redisUrl: envVars.REDIS_URL as string,
-  rabbitMqUrl: envVars.RABBITMQ_URL as string,
   rabbitMqEmailQueue: envVars.RABBITMQ_EMAIL_QUEUE as string,
+
+  smtpHost: envVars.SMTP_HOST as string,
+  smtpPort: envVars.SMTP_PORT as number,
+  smtpSecure: envVars.SMTP_SECURE as boolean,
+  smtpUser: envVars.SMTP_USER as string,
+  smtpPass: envVars.SMTP_PASS as string,
+  smtpFromName: envVars.SMTP_FROM_NAME as string,
+  smtpFromEmail: envVars.SMTP_FROM_EMAIL as string,
 
   databaseUrl: resolveDatabaseUrl(envVars.NODE_ENV),
 };

@@ -1,8 +1,9 @@
-import amqp, { Connection, Channel } from "amqplib";
+import * as amqp from "amqplib";
+import type { Channel, ChannelModel } from "amqplib";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 
-let connection: Connection | null = null;
+let connection: ChannelModel | null = null;
 let channel: Channel | null = null;
 
 export async function initRabbitMQ(): Promise<Channel> {
@@ -10,25 +11,32 @@ export async function initRabbitMQ(): Promise<Channel> {
     return channel;
   }
 
-  const url = env.RABBITMQ_URL;
-  const queueName = env.RABBITMQ_EMAIL_QUEUE || "email_queue";
+  const url = env.rabbitMQUrl;
+  const queueName = env.rabbitMqEmailQueue || "email_queue";
 
-  connection = await amqp.connect(url);
-  channel = await connection.createChannel();
+  // В новых typings connect() возвращает ChannelModel
+  const conn: ChannelModel = await amqp.connect(url);
+  const createdChannel: Channel = await conn.createChannel();
 
-  await channel.assertQueue(queueName, {
-    durable: true,
+  connection = conn;
+  channel = createdChannel;
+
+  await createdChannel.assertQueue(queueName, { durable: true });
+
+  logger.info({
+    queueName,
+    msg: "RabbitMQ initialized and email queue asserted",
   });
 
-  logger.info({ queueName, msg: "RabbitMQ initialized and email queue asserted" });
-
-  process.on("SIGTERM", async () => {
+  process.once("SIGTERM", async () => {
     try {
       if (channel) {
         await channel.close();
+        channel = null;
       }
       if (connection) {
         await connection.close();
+        connection = null;
       }
       logger.info("RabbitMQ connection closed (SIGTERM)");
     } catch (err) {
@@ -36,7 +44,7 @@ export async function initRabbitMQ(): Promise<Channel> {
     }
   });
 
-  return channel;
+  return createdChannel;
 }
 
 export function getRabbitChannel(): Channel {
