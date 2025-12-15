@@ -3,7 +3,13 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["dist", "node_modules"],
+    ignores: [
+      "dist",
+      "node_modules",
+      "src/database/migrations/",
+      "src/database/seeders/",
+      "src/database/config/",
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

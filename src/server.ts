@@ -42,12 +42,8 @@ async function connectWithRetry(
 
   while (attempt < maxAttempts) {
     const ok = await tryOnce();
-    if (ok) {
-      return;
-    }
-    if (attempt < maxAttempts) {
-      await delay(attemptDelayMs);
-    }
+    if (ok) return;
+    if (attempt < maxAttempts) await delay(attemptDelayMs);
   }
 
   logger.error(
@@ -69,48 +65,57 @@ async function connectWithRetry(
 
 async function start() {
   try {
-    await Promise.all([
-      connectWithRetry("Redis", initRedis, {
-        maxAttempts: 3,
-        attemptDelayMs: 2000,
-        backgroundRetryMs: 10000,
-      }),
-      connectWithRetry("RabbitMQ", initRabbitMQ, {
-        maxAttempts: 3,
-        attemptDelayMs: 2000,
-        backgroundRetryMs: 10000,
-      }),
+    const initTasks: Promise<void>[] = [
       connectWithRetry("Database", initDatabase, {
         maxAttempts: 3,
         attemptDelayMs: 2000,
         backgroundRetryMs: 10000,
       }),
-    ]);
+    ];
 
-    await startEmailWorker();
+    if (env.redisEnabled) {
+      initTasks.push(
+        connectWithRetry("Redis", initRedis, {
+          maxAttempts: 3,
+          attemptDelayMs: 2000,
+          backgroundRetryMs: 10000,
+        }),
+      );
+    } else {
+      logger.warn("Redis disabled (REDIS_ENABLED=false). Catching logic will not start.");
+    }
+
+    if (env.rabbitMqEnabled) {
+      initTasks.push(
+        connectWithRetry("RabbitMQ", initRabbitMQ, {
+          maxAttempts: 3,
+          attemptDelayMs: 2000,
+          backgroundRetryMs: 10000,
+        }),
+      );
+    } else {
+      logger.warn("RabbitMQ disabled (RABBITMQ_ENABLED=false). Email worker will not start.");
+    }
+
+    await Promise.all(initTasks);
+
+    if (env.rabbitMqEnabled) {
+      await startEmailWorker();
+    }
 
     const server = app.listen(env.port, () => {
       logger.info({ port: env.port }, "Server started");
     });
 
     process.on("unhandledRejection", (reason) => {
-      logger.error({
-        msg: "Unhandled promise rejection",
-        reason,
-      });
+      logger.error({ msg: "Unhandled promise rejection", reason });
     });
 
     process.on("uncaughtException", (err) => {
       logger.error({
         msg: "Uncaught exception, shutting down",
         err:
-          err instanceof Error
-            ? {
-                name: err.name,
-                message: err.message,
-                stack: err.stack,
-              }
-            : err,
+          err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
       });
       process.exit(1);
     });

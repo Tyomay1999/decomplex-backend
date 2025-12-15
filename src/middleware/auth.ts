@@ -1,26 +1,65 @@
-import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { env } from "../config/env";
-import { AuthError } from "../errors/AuthError";
+import type { NextFunction, Request, Response } from "express";
+import { verifyAccessToken } from "../services/authService";
+import { unauthorized } from "../errors/DomainError";
 
-interface TokenPayload {
-  sub: string;
-  company?: string;
-  position?: string;
-}
-
-export function authMiddleware(req: Request, _res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
+export function auth(req: Request, _res: Response, next: NextFunction): void {
+  const header = req.header("Authorization");
 
   if (!header || !header.startsWith("Bearer ")) {
-    throw new AuthError("Authorization header is missing");
+    return next(
+      unauthorized({
+        message: "Authorization header missing",
+        code: "UNAUTHORIZED",
+      }),
+    );
   }
 
-  const token = header.slice(7).trim();
+  const token = header.slice("Bearer ".length).trim();
+  const payload = verifyAccessToken(token);
 
-  const decoded = jwt.verify(token, env.jwtSecret) as TokenPayload;
+  if (
+    payload.fingerprint &&
+    req.fingerprint?.hash &&
+    payload.fingerprint !== req.fingerprint.hash
+  ) {
+    return next(
+      unauthorized({
+        code: "FINGERPRINT_MISMATCH",
+        message: "Session fingerprint mismatch",
+      }),
+    );
+  }
 
-  req.auth = { userId: decoded.sub };
+  req.auth = { userId: payload.userId };
 
-  next();
+  switch (payload.userType) {
+    case "candidate": {
+      req.user = {
+        userType: "candidate",
+        id: payload.userId,
+        language: payload.language,
+      };
+      return next();
+    }
+
+    case "company": {
+      req.user = {
+        userType: "company",
+        id: payload.userId,
+        companyId: payload.companyId,
+        position: payload.position ?? undefined,
+        language: payload.language,
+      };
+      return next();
+    }
+
+    default: {
+      return next(
+        unauthorized({
+          code: "INVALID_ACCESS_TOKEN",
+          message: "Unknown user type",
+        }),
+      );
+    }
+  }
 }

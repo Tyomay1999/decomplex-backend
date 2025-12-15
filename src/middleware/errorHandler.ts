@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { httpLogger } from "../lib/logger";
 import { AppError } from "../errors/AppError";
 import { env } from "../config/env";
+import { DomainError } from "../errors/DomainError";
 
 type RequestWithId = Request & {
   requestId?: string;
@@ -22,6 +23,16 @@ export function errorHandler(err: unknown, req: RequestWithId, res: Response, _n
       statusCode: 500,
       code: "INTERNAL_ERROR",
       isOperational: false,
+    });
+  }
+
+  if (err instanceof DomainError) {
+    return res.status(err.statusCode).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      },
     });
   }
 

@@ -14,7 +14,6 @@ export async function initRabbitMQ(): Promise<Channel> {
   const url = env.rabbitMQUrl;
   const queueName = env.rabbitMqEmailQueue || "email_queue";
 
-  // В новых typings connect() возвращает ChannelModel
   const conn: ChannelModel = await amqp.connect(url);
   const createdChannel: Channel = await conn.createChannel();
 

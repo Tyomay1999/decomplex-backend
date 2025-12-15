@@ -26,9 +26,12 @@ export function fingerprintMiddleware(req: Request, _res: Response, next: NextFu
     referer,
   };
 
-  const rawString = JSON.stringify(rawFingerprintObject);
+  let hash = (req.headers["x-client-fingerprint"] as string) || "";
 
-  const hash = crypto.createHash("sha256").update(rawString).digest("hex");
+  if (!hash) {
+    const rawString = JSON.stringify(rawFingerprintObject);
+    hash = crypto.createHash("sha256").update(rawString).digest("hex");
+  }
 
   req.fingerprint = {
     hash,

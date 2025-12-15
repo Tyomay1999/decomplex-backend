@@ -8,17 +8,15 @@ import { env } from "./config/env";
 import { corsConfig } from "./config/cors";
 import { swaggerSpec } from "./config/swagger";
 
-// Middleware
 import { requestIdMiddleware } from "./middleware/requestId";
 import { requestLogger } from "./middleware/requestLogger";
 import { securityHeadersMiddleware } from "./middleware/security";
 import { localeMiddleware } from "./middleware/locale";
 import { fingerprintMiddleware } from "./middleware/fingerprint";
-import { authMiddleware } from "./middleware/auth";
-import { attachMockUserMiddleware } from "./middleware/attachMockUser";
-import { saveUserFileMiddleware } from "./middleware/saveUserFile";
 import { notFoundHandler } from "./middleware/notFoundHandler";
 import { errorHandler } from "./middleware/errorHandler";
+
+import { apiRouter } from "./routes";
 
 export const app = express();
 
@@ -57,9 +55,9 @@ if (env.nodeEnv !== "production") {
   );
 }
 
-app.post("/api", authMiddleware, attachMockUserMiddleware, saveUserFileMiddleware, (_req, res) => {
-  res.json({ status: "ok" });
-});
+app.use("/api", apiRouter);
+
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use(notFoundHandler);
 app.use(errorHandler);

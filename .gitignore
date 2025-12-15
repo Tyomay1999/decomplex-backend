@@ -1,5 +1,7 @@
 node_modules
+.idea
 dist
 .env
 logs
+file-tree-src.txt
 static

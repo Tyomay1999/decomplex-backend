@@ -7,12 +7,19 @@ declare global {
       userId: string;
     }
 
-    interface UserPayload {
-      id: string;
-      company?: string;
-      position?: string;
-      language?: LocaleCode;
-    }
+    type UserPayload =
+      | {
+          userType: "candidate";
+          id: string;
+          language: LocaleCode;
+        }
+      | {
+          userType: "company";
+          id: string;
+          companyId: string;
+          language: LocaleCode;
+          position?: string;
+        };
 
     interface FileInfo {
       fileName: string;
@@ -20,6 +27,7 @@ declare global {
       url: string;
       size: number;
       mimetype?: string;
+
       company: string;
       position: string;
       userId: string;

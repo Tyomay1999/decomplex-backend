@@ -1,15 +1,15 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 
-export function attachMockUserMiddleware(req: Request, _res: Response, next: NextFunction) {
-  if (!req.auth) {
-    return next();
-  }
-
-  req.user = {
-    id: req.auth.userId,
-    company: "DecomplexCompany",
-    position: "EventManager",
+export function attachMockUser(_req: Request, _res: Response, next: NextFunction): void {
+  _req.user = {
+    userType: "company",
+    id: "mock-user-id",
+    companyId: "DecomplexCompany",
+    position: "admin",
+    language: "en",
   };
 
-  next();
+  _req.auth = { userId: "mock-user-id" };
+
+  return next();
 }
