@@ -2,9 +2,7 @@ require("dotenv").config();
 
 function requireEnv(name) {
   const value = process.env[name];
-  if (!value) {
-    throw new Error(`Environment variable ${name} is not set`);
-  }
+  if (!value) throw new Error(`Environment variable ${name} is not set`);
   return value;
 }
 
@@ -18,7 +16,10 @@ module.exports = {
     dialect: "postgres",
   },
   production: {
-    url: requireEnv("DATABASE_URL_PROD"),
+    url: requireEnv("DATABASE_URL"),
     dialect: "postgres",
+    dialectOptions: {
+      ssl: { require: true, rejectUnauthorized: false },
+    },
   },
 };
