@@ -1,6 +1,7 @@
 import { Sequelize } from "sequelize";
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
+import { initModels } from "./models";
 
 let sequelize: Sequelize | null = null;
 
@@ -19,7 +20,13 @@ export async function initDatabase(): Promise<void> {
   sequelize = new Sequelize(env.databaseUrl, {
     dialect: "postgres",
     logging: env.nodeEnv === "development" ? (msg) => logger.debug({ msg }, "Sequelize") : false,
+    dialectOptions:
+      env.nodeEnv === "production"
+        ? { ssl: { require: true, rejectUnauthorized: false } }
+        : undefined,
   });
+
+  initModels(sequelize);
 
   const safeDbUrl = (() => {
     try {

@@ -5,12 +5,16 @@ import { logger } from "../../lib/logger";
 let redisClient: RedisClientType | null = null;
 
 export async function initRedis(): Promise<RedisClientType> {
+  if (!env.redisEnabled) {
+    throw new Error("Redis is disabled (REDIS_ENABLED=false).");
+  }
+
   if (redisClient) {
     return redisClient;
   }
 
   redisClient = createClient({
-    url: env.REDIS_URL,
+    url: env.redisUrl,
   });
 
   redisClient.on("error", (err) => {
@@ -32,15 +36,13 @@ export function getRedisClient(): RedisClientType {
   return redisClient;
 }
 
-/**
- * Удобные helpers для хранения JSON.
- */
-
 export async function redisSetJson(
   key: string,
   value: unknown,
   ttlSeconds?: number,
 ): Promise<void> {
+  if (!env.redisEnabled) return;
+
   const client = await initRedis();
   const json = JSON.stringify(value);
 
@@ -52,6 +54,8 @@ export async function redisSetJson(
 }
 
 export async function redisGetJson<T>(key: string): Promise<T | null> {
+  if (!env.redisEnabled) return null;
+
   const client = await initRedis();
   const raw = await client.get(key);
   if (!raw) return null;

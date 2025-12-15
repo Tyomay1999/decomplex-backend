@@ -32,8 +32,14 @@ export async function saveUserFileMiddleware(req: Request, res: Response, next: 
 
   const baseDir = path.resolve(process.cwd(), env.staticDir);
 
-  const company = sanitizeSegment(req.user.company ?? "company");
-  const position = sanitizeSegment(req.user.position ?? "position");
+  const company =
+    req.user?.userType === "company" ? sanitizeSegment(req.user.companyId) : "company";
+
+  const position =
+    req.user?.userType === "company"
+      ? sanitizeSegment(req.user.position ?? "position")
+      : "position";
+
   const userId = sanitizeSegment(req.user.id);
 
   const targetDir = path.join(baseDir, company, position, userId);
