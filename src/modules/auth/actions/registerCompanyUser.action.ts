@@ -11,7 +11,7 @@ import type { CompanyUserRole, LocaleCode } from "../../../domain/types";
 interface RegisterCompanyUserBody {
   email: string;
   password: string;
-  role: CompanyUserRole; // "admin" | "recruiter"
+  role: CompanyUserRole;
   position?: string;
   language: LocaleCode;
 }

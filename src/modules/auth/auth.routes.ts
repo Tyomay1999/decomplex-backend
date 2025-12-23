@@ -15,13 +15,16 @@ import { registerCompanyUserAction } from "./actions/registerCompanyUser.action"
 
 import { auth as authMiddleware } from "../../middleware/auth";
 import { fingerprintMiddleware } from "../../middleware/fingerprint";
+import { getMeAction } from "./actions/getMe.action";
 import { logoutAction } from "./actions/logout.action";
 
 const router = Router();
 
 router.post("/login", fingerprintMiddleware, validateLogin, loginAction);
 router.post("/refresh", refreshTokenAction);
+
 router.get("/current", fingerprintMiddleware, authMiddleware, getCurrentUserAction);
+router.get("/me", fingerprintMiddleware, authMiddleware, getMeAction);
 
 router.post("/register/company", validateCompanyRegister, registerCompanyAction);
 

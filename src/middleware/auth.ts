@@ -47,6 +47,8 @@ export function auth(req: Request, _res: Response, next: NextFunction): void {
         userType: "company",
         id: payload.userId,
         companyId: payload.companyId,
+        email: payload.email,
+        role: payload.role,
         position: payload.position ?? undefined,
         language: payload.language,
       };

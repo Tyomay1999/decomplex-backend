@@ -46,7 +46,11 @@ export class DomainError extends Error {
 export function notFound(
   code: Extract<
     DomainErrorCode,
-    "CANDIDATE_NOT_FOUND" | "COMPANY_NOT_FOUND" | "USER_NOT_FOUND" | "COMPANY_USER_NOT_FOUND"
+    | "CANDIDATE_NOT_FOUND"
+    | "COMPANY_NOT_FOUND"
+    | "USER_NOT_FOUND"
+    | "COMPANY_USER_NOT_FOUND"
+    | "UNKNOWN_DOMAIN_ERROR"
   >,
   message: string,
   details?: unknown,
@@ -63,7 +67,10 @@ export function notFound(
 export function conflict(
   code: Extract<
     DomainErrorCode,
-    "COMPANY_EMAIL_CONFLICT" | "COMPANY_USER_EMAIL_CONFLICT" | "APPLICATION_ALREADY_EXISTS"
+    | "COMPANY_EMAIL_CONFLICT"
+    | "COMPANY_USER_EMAIL_CONFLICT"
+    | "APPLICATION_ALREADY_EXISTS"
+    | "CANDIDATE_EMAIL_CONFLICT"
   >,
   message: string,
   details?: unknown,

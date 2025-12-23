@@ -61,9 +61,7 @@ export async function registerCandidateAction(
       err.name === "SequelizeUniqueConstraintError"
     ) {
       return next(
-        conflict("COMPANY_USER_EMAIL_CONFLICT", "Candidate email already exists", {
-          email,
-        }),
+        conflict("CANDIDATE_EMAIL_CONFLICT", "Candidate email already exists", { email }),
       );
     }
 
