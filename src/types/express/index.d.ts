@@ -17,6 +17,8 @@ declare global {
           userType: "company";
           id: string;
           companyId: string;
+          email: string;
+          role: "admin" | "recruiter";
           language: LocaleCode;
           position?: string;
         };

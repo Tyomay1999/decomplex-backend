@@ -1,5 +1,4 @@
 import cors from "cors";
-import { env } from "./env";
 
 const PROD_ORIGINS = [
   "https://decomplex.com",
