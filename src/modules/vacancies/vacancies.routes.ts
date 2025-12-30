@@ -12,6 +12,12 @@ import { archiveVacancyAction } from "./actions/archiveVacancy.action";
 import { validateCreateVacancy } from "./validators/createVacancy.validation";
 import { validateUpdateVacancy } from "./validators/updateVacancy.validation";
 
+import { requireCandidate } from "../../middleware/requireCandidate";
+import { saveUserFileMiddleware } from "../../middleware/saveUserFile";
+import { validateApplyVacancy } from "./validators/applyVacancy.validation";
+import { applyVacancyAction } from "./actions/applyVacancy.action";
+import { listVacancyApplicationsAction } from "./actions/listVacancyApplications.action";
+
 const router = Router();
 
 router.get("/", listVacanciesAction);
@@ -24,6 +30,24 @@ router.post(
   requireCompanyRole(["admin", "recruiter"]),
   validateCreateVacancy,
   createVacancyAction,
+);
+
+router.get(
+  "/:id/applications",
+  fingerprintMiddleware,
+  authMiddleware,
+  requireCompanyRole(["admin", "recruiter"]),
+  listVacancyApplicationsAction,
+);
+
+router.post(
+  "/:id/apply",
+  fingerprintMiddleware,
+  authMiddleware,
+  requireCandidate,
+  saveUserFileMiddleware,
+  validateApplyVacancy,
+  applyVacancyAction,
 );
 
 router.patch(
