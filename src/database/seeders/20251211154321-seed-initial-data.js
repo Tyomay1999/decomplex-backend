@@ -156,96 +156,84 @@ module.exports = {
     ]);
 
     // -----------------------------
-    // Insert vacancies
+    // Insert vacancies (many)
     // -----------------------------
-    await queryInterface.bulkInsert("vacancies", [
-      {
-        id: vacancy1Id,
-        company_id: company1Id,
-        created_by_id: company1RecruiterId,
-        title: "Senior Node.js Engineer",
-        description:
-          "We are looking for a Senior Node.js Engineer to work on our recruitment platform backend.",
-        salary_from: 3500,
-        salary_to: 5000,
-        job_type: "full_time",
-        location: "Yerevan, Armenia",
-        status: "active",
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: vacancy2Id,
-        company_id: company1Id,
-        created_by_id: company1RecruiterId,
-        title: "React Frontend Developer",
-        description: "Frontend role focusing on React, TypeScript and Ant Design.",
-        salary_from: 2500,
-        salary_to: 4000,
-        job_type: "remote",
-        location: "Remote",
-        status: "active",
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: vacancy3Id,
-        company_id: company2Id,
-        created_by_id: company2AdminId,
-        title: "HR Generalist",
-        description: "HR position responsible for full-cycle recruiting and onboarding.",
-        salary_from: 1500,
-        salary_to: 2200,
-        job_type: "hybrid",
-        location: "Tbilisi, Georgia",
-        status: "active",
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    const titles = [
+      "Senior Node.js Engineer",
+      "React Frontend Developer",
+      "Fullstack JavaScript Developer",
+      "Backend Engineer (Node.js)",
+      "DevOps Engineer",
+      "QA Automation Engineer",
+      "Product Manager",
+      "UI/UX Designer",
+      "Data Analyst",
+      "Technical Recruiter",
+    ];
 
-    await queryInterface.bulkInsert("applications", [
-      {
-        id: application1Id,
-        vacancy_id: vacancy1Id,
-        candidate_id: candidate1Id,
-        cv_file_path: "uploads/cv/john-doe-nodejs.pdf",
-        cover_letter: "I have 5+ years of experience with Node.js and TypeScript.",
-        status: "applied",
-        created_at: now,
+    const descriptions = [
+      "Join our team to build scalable services and APIs.",
+      "Work with React, TypeScript, and modern frontend tooling.",
+      "Build reliable backend systems with Node.js and PostgreSQL.",
+      "Improve CI/CD pipelines and infrastructure automation.",
+      "Create automated tests and improve product quality.",
+      "Collaborate with cross-functional teams and deliver features.",
+    ];
+
+    const jobTypes = ["full_time", "part_time", "remote", "hybrid"];
+    const locations = [
+      "Yerevan, Armenia",
+      "Tbilisi, Georgia",
+      "Remote",
+      "Berlin, Germany",
+      "Amsterdam, Netherlands",
+    ];
+
+    function pick(arr, i) {
+      return arr[i % arr.length];
+    }
+
+    // Сколько вакансий залить
+    const VACANCIES_COUNT = 120;
+
+    const generatedVacancyIds = [];
+    const vacanciesToInsert = [];
+
+    for (let i = 0; i < VACANCIES_COUNT; i++) {
+      const id = uuid();
+      generatedVacancyIds.push(id);
+
+      const isCompany1 = i % 2 === 0;
+
+      const companyId = isCompany1 ? company1Id : company2Id;
+      const createdById = isCompany1 ? company1RecruiterId : company2AdminId;
+
+      const title = pick(titles, i);
+      const description = `${pick(descriptions, i)} Vacancy #${i + 1}.`;
+
+      const createdAt = new Date(now.getTime() - i * 60 * 1000);
+
+      const salaryFrom = 1500 + (i % 6) * 400;
+      const salaryTo = salaryFrom + 1200 + (i % 4) * 500;
+
+      vacanciesToInsert.push({
+        id,
+        company_id: companyId,
+        created_by_id: createdById,
+        title,
+        description,
+        salary_from: salaryFrom,
+        salary_to: salaryTo,
+        job_type: pick(jobTypes, i),
+        location: pick(locations, i),
+        status: i % 12 === 0 ? "archived" : "active",
+        created_at: createdAt,
         updated_at: now,
-      },
-      {
-        id: application2Id,
-        vacancy_id: vacancy1Id,
-        candidate_id: candidate2Id,
-        cv_file_path: "uploads/cv/jane-smith-backend.pdf",
-        cover_letter: "Strong background in backend and microservices.",
-        status: "viewed",
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: application3Id,
-        vacancy_id: vacancy2Id,
-        candidate_id: candidate2Id,
-        cv_file_path: "uploads/cv/jane-smith-frontend.pdf",
-        cover_letter: "4 years of experience with React and Redux.",
-        status: "interview",
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: application4Id,
-        vacancy_id: vacancy3Id,
-        candidate_id: candidate3Id,
-        cv_file_path: "uploads/cv/aram-petrossian-hr.pdf",
-        cover_letter: "Experience in HR and recruiting across multiple industries.",
-        status: "applied",
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+      });
+    }
+    await queryInterface.bulkInsert("vacancies", vacanciesToInsert);
+
+    // await queryInterface.bulkInsert("applications", []);
   },
 
   async down(queryInterface, Sequelize) {

@@ -1,6 +1,7 @@
 import { Vacancy } from "../models/Vacancy";
 import type { VacancyJobType, VacancyStatus } from "../../domain/types";
 import type { DbOptions } from "./types";
+import { Op, WhereOptions } from "sequelize";
 
 export interface VacancyEntity {
   id: string;
@@ -37,6 +38,12 @@ export interface UpdateVacancyDTO {
   jobType?: VacancyJobType;
   location?: string | null;
   status?: VacancyStatus;
+}
+
+export interface ListVacanciesFilter {
+  companyId?: string;
+  status?: VacancyStatus;
+  jobType?: VacancyJobType;
 }
 
 function mapVacancyModelToEntity(model: Vacancy): VacancyEntity {
@@ -89,25 +96,104 @@ export interface ListVacanciesFilter {
   jobType?: VacancyJobType;
 }
 
-export async function listVacancies(filter: ListVacanciesFilter): Promise<VacancyEntity[]> {
-  const where: Record<string, unknown> = {};
+type CursorPayload = { createdAt: string; id: string };
 
-  if (filter.companyId) {
-    where.companyId = filter.companyId;
+function decodeCursor(raw?: string): CursorPayload | null {
+  if (!raw) return null;
+
+  try {
+    const json = Buffer.from(raw, "base64").toString("utf8");
+    const parsed = JSON.parse(json) as { createdAt?: unknown; id?: unknown };
+
+    if (typeof parsed.createdAt !== "string" || typeof parsed.id !== "string") return null;
+
+    const date = new Date(parsed.createdAt);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    return null;
   }
-  if (filter.status) {
-    where.status = filter.status;
-  }
-  if (filter.jobType) {
-    where.jobType = filter.jobType;
+}
+
+function encodeCursor(payload: CursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
+}
+
+export interface ListVacanciesPagedFilter extends ListVacanciesFilter {
+  q?: string;
+  limit: number;
+  cursor?: string;
+}
+
+export interface ListVacanciesPagedResult {
+  items: VacancyEntity[];
+  nextCursor: string | null;
+}
+
+export async function listVacanciesPaged(
+  filter: ListVacanciesPagedFilter,
+): Promise<ListVacanciesPagedResult> {
+  const where: WhereOptions = {};
+
+  if (filter.companyId) where.companyId = filter.companyId;
+  if (filter.status) where.status = filter.status;
+  if (filter.jobType) where.jobType = filter.jobType;
+
+  const q = filter.q?.trim();
+  if (q) {
+    Object.assign(where, {
+      [Op.or]: [
+        { title: { [Op.iLike]: `%${q}%` } },
+        { description: { [Op.iLike]: `%${q}%` } },
+        { location: { [Op.iLike]: `%${q}%` } },
+      ],
+    });
   }
 
-  const vacancies = await Vacancy.findAll({
+  const cursor = decodeCursor(filter.cursor);
+  if (cursor) {
+    const cursorDate = new Date(cursor.createdAt);
+
+    const cursorCondition: WhereOptions = {
+      [Op.or]: [
+        { createdAt: { [Op.lt]: cursorDate } },
+        {
+          [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }],
+        },
+      ],
+    };
+
+    Object.assign(where, {
+      [Op.and]: [cursorCondition],
+    });
+  }
+
+  const take = Math.max(1, Math.min(50, Math.floor(filter.limit)));
+  const rows = await Vacancy.findAll({
     where,
-    order: [["createdAt", "DESC"]],
+    order: [
+      ["createdAt", "DESC"],
+      ["id", "DESC"],
+    ],
+    limit: take + 1,
   });
 
-  return vacancies.map(mapVacancyModelToEntity);
+  const hasMore = rows.length > take;
+  const sliced = hasMore ? rows.slice(0, take) : rows;
+
+  const items = sliced.map(mapVacancyModelToEntity);
+
+  let nextCursor: string | null = null;
+  if (hasMore && sliced.length > 0) {
+    const last = sliced[sliced.length - 1]!;
+    nextCursor = encodeCursor({
+      createdAt: last.createdAt.toISOString(),
+      id: last.id,
+    });
+  }
+
+  return { items, nextCursor };
 }
 
 export async function updateVacancyById(
