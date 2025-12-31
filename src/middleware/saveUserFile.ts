@@ -11,11 +11,17 @@ function sanitizeSegment(value: string): string {
   return trimmed.replace(/[^a-zA-Z0-9_-]/g, "_") || "default";
 }
 
-function ensureDir(dir: string) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+function ensureDir(dir: string): void {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 }
 
-export async function saveUserFileMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function saveUserFileMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
   const files = req.files;
 
   if (!files || !files.file) {
@@ -31,23 +37,26 @@ export async function saveUserFileMiddleware(req: Request, res: Response, next: 
   }
 
   const baseDir = path.resolve(process.cwd(), env.staticDir);
-
-  const company =
-    req.user?.userType === "company" ? sanitizeSegment(req.user.companyId) : "company";
-
-  const position =
-    req.user?.userType === "company"
-      ? sanitizeSegment(req.user.position ?? "position")
-      : "position";
-
   const userId = sanitizeSegment(req.user.id);
 
-  const targetDir = path.join(baseDir, company, position, userId);
+  const { scope, bucket } =
+    req.user.userType === "company"
+      ? {
+          scope: sanitizeSegment(req.user.companyId),
+          bucket: sanitizeSegment(req.user.position ?? "company-user"),
+        }
+      : {
+          scope: "candidates",
+          bucket: "cv",
+        };
+
+  const targetDir = path.join(baseDir, scope, bucket, userId);
   ensureDir(targetDir);
 
   const ext = path.extname(uploaded.name) || ".bin";
-  const name = path.basename(uploaded.name, ext);
-  const fileName = `${name}-${Date.now()}${ext}`;
+  const baseName = path.basename(uploaded.name, ext);
+  const safeName = sanitizeSegment(baseName);
+  const fileName = `${safeName}-${Date.now()}${ext}`;
   const filePath = path.join(targetDir, fileName);
 
   try {
@@ -61,13 +70,13 @@ export async function saveUserFileMiddleware(req: Request, res: Response, next: 
   req.fileInfo = {
     fileName,
     path: filePath,
-    url: `/static/${company}/${position}/${userId}/${fileName}`,
+    url: `/static/${scope}/${bucket}/${userId}/${fileName}`,
     size: uploaded.size,
     mimetype: uploaded.mimetype,
-    company,
-    position,
+    company: scope,
+    position: bucket,
     userId,
   };
 
-  next();
+  return next();
 }

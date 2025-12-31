@@ -9,7 +9,6 @@
     "start": "node dist/server.js",
     "start:prod": "npm run db:migrate && node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "lint": "eslint . --ext .ts",
     "db:migrate": "sequelize db:migrate --config src/database/config/config.cjs --migrations-path src/database/migrations",
     "db:seed": "sequelize db:seed:all --config src/database/config/config.cjs --seeders-path src/database/seeders",
     "start:render:prod": "npm run db:migrate && npm run db:seed && node dist/server.js",
@@ -20,9 +19,13 @@
     "db:test:reset": "cross-env NODE_ENV=test sequelize db:migrate:undo:all --env test && cross-env NODE_ENV=test sequelize db:migrate --env test",
     "db:test:reset:seed": "cross-env NODE_ENV=test sequelize db:migrate:undo:all --env test && cross-env NODE_ENV=test sequelize db:migrate --env test && cross-env NODE_ENV=test sequelize db:seed:all --env test",
     "test": "cross-env NODE_ENV=test jest",
-    "format": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "format:all": "npm run format && npm run lint && npm run typecheck"
+    "format": "prettier --write .",
+    "check": "npm run lint && npm run typecheck",
+    "fix": "npm run lint:fix && npm run format",
+    "format:all": "npm run fix && npm run typecheck"
   },
   "repository": {
     "type": "git",

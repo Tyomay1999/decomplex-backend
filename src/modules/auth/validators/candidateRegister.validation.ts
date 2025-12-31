@@ -13,6 +13,7 @@ const candidateRegisterSchema = Joi.object({
     .valid(...SUPPORTED_LOCALES)
     .required(),
   fingerprint: Joi.string().trim().optional(),
+  rememberUser: Joi.boolean().optional().default(false),
 });
 
 export function validateCandidateRegister(req: Request, _res: Response, next: NextFunction): void {
