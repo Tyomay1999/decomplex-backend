@@ -18,4 +18,16 @@ export default [
       "@typescript-eslint/no-unused-vars": "warn",
     },
   },
+  {
+    files: ["**/*.cjs"],
+    languageOptions: {
+      globals: {
+        module: "readonly",
+        require: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        exports: "readonly",
+      },
+    },
+  },
 ];

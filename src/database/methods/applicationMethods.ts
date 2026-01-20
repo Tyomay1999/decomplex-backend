@@ -1,9 +1,10 @@
-import { Op, WhereOptions } from "sequelize";
+import { Op } from "sequelize";
+import type { WhereOptions, IncludeOptions } from "sequelize";
 import { Application } from "../models/Application";
 import { Candidate } from "../models/Candidate";
 import type { ApplicationStatus } from "../../domain/types";
 import type { DbOptions } from "./types";
-import { AppError } from "../../errors/AppError";
+import { validationFailed } from "../../errors/DomainError";
 
 export interface ApplicationEntity {
   id: string;
@@ -41,6 +42,41 @@ export interface ApplicationWithCandidateEntity extends ApplicationEntity {
   candidate: CandidatePublicEntity;
 }
 
+export interface ListMyApplicationsPagedFilter {
+  candidateId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export interface ListMyApplicationsPagedResult {
+  items: ApplicationEntity[];
+  nextCursor: string | null;
+}
+
+export interface ListApplicationsByVacancyPagedFilter {
+  vacancyId: string;
+  limit: number;
+  cursor?: string;
+  status?: ApplicationStatus;
+  q?: string;
+}
+
+export interface ListApplicationsByVacancyPagedResult {
+  items: ApplicationWithCandidateEntity[];
+  nextCursor: string | null;
+}
+
+type CursorPayload = { createdAt: string; id: string };
+type UnknownRecord = Record<string, unknown>;
+
+type WhereWithAnd = WhereOptions & {
+  [Op.and]?: WhereOptions | WhereOptions[];
+};
+
+function isRecord(v: unknown): v is UnknownRecord {
+  return typeof v === "object" && v !== null;
+}
+
 function mapApplicationModelToEntity(model: Application): ApplicationEntity {
   return {
     id: model.id,
@@ -54,26 +90,94 @@ function mapApplicationModelToEntity(model: Application): ApplicationEntity {
   };
 }
 
-function mapCandidateModelToPublicEntity(model: Candidate): CandidatePublicEntity {
-  return {
-    id: model.id,
-    email: model.email,
-    firstName: model.firstName,
-    lastName: model.lastName,
-    language: model.language,
-  };
+function mapCandidateToPublicEntity(raw: unknown): CandidatePublicEntity {
+  if (raw instanceof Candidate) {
+    return {
+      id: raw.id,
+      email: raw.email,
+      firstName: raw.firstName,
+      lastName: raw.lastName,
+      language: raw.language,
+    };
+  }
+
+  if (isRecord(raw)) {
+    const id = raw.id;
+    const email = raw.email;
+    const firstName = raw.firstName;
+    const lastName = raw.lastName;
+    const language = raw.language;
+
+    if (
+      typeof id === "string" &&
+      typeof email === "string" &&
+      typeof firstName === "string" &&
+      typeof lastName === "string" &&
+      typeof language === "string"
+    ) {
+      return { id, email, firstName, lastName, language };
+    }
+  }
+
+  throw validationFailed("Candidate relation missing", { field: "candidate" });
 }
 
 function mapApplicationWithCandidate(model: Application): ApplicationWithCandidateEntity {
-  const candidateModel = model.get("candidate") as Candidate | null;
+  const candidateRaw: unknown = model.get("candidate");
+  return {
+    ...mapApplicationModelToEntity(model),
+    candidate: mapCandidateToPublicEntity(candidateRaw),
+  };
+}
 
-  if (!candidateModel) {
-    throw new AppError("Candidate relation missing on application", { statusCode: 500 });
+function decodeCursor(raw?: string): CursorPayload | null {
+  if (!raw) return null;
+
+  try {
+    const json = Buffer.from(raw, "base64").toString("utf8");
+    const parsed: unknown = JSON.parse(json);
+
+    if (!isRecord(parsed)) return null;
+
+    const createdAt = parsed.createdAt;
+    const id = parsed.id;
+
+    if (typeof createdAt !== "string" || typeof id !== "string") return null;
+
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(payload: CursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
+}
+
+function appendAnd(where: WhereOptions, condition: WhereOptions): WhereOptions {
+  const current: WhereWithAnd = where;
+  const existing = current[Op.and];
+
+  if (Array.isArray(existing)) {
+    return {
+      ...where,
+      [Op.and]: [...existing, condition],
+    };
+  }
+
+  if (existing) {
+    return {
+      ...where,
+      [Op.and]: [existing, condition],
+    };
   }
 
   return {
-    ...mapApplicationModelToEntity(model),
-    candidate: mapCandidateModelToPublicEntity(candidateModel),
+    ...where,
+    [Op.and]: [condition],
   };
 }
 
@@ -150,45 +254,10 @@ export async function deleteApplicationById(id: string, options?: DbOptions): Pr
   return deletedCount > 0;
 }
 
-type CursorPayload = { createdAt: string; id: string };
-
-function decodeCursor(raw?: string): CursorPayload | null {
-  if (!raw) return null;
-
-  try {
-    const json = Buffer.from(raw, "base64").toString("utf8");
-    const parsed = JSON.parse(json) as { createdAt?: unknown; id?: unknown };
-
-    if (typeof parsed.createdAt !== "string" || typeof parsed.id !== "string") return null;
-
-    const date = new Date(parsed.createdAt);
-    if (Number.isNaN(date.getTime())) return null;
-
-    return { createdAt: parsed.createdAt, id: parsed.id };
-  } catch {
-    return null;
-  }
-}
-
-function encodeCursor(payload: CursorPayload): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
-}
-
-export interface ListMyApplicationsPagedFilter {
-  candidateId: string;
-  limit: number;
-  cursor?: string;
-}
-
-export interface ListMyApplicationsPagedResult {
-  items: ApplicationEntity[];
-  nextCursor: string | null;
-}
-
 export async function listMyApplicationsPaged(
   filter: ListMyApplicationsPagedFilter,
 ): Promise<ListMyApplicationsPagedResult> {
-  const where: WhereOptions = { candidateId: filter.candidateId };
+  let where: WhereOptions = { candidateId: filter.candidateId };
 
   const cursor = decodeCursor(filter.cursor);
   if (cursor) {
@@ -197,15 +266,11 @@ export async function listMyApplicationsPaged(
     const cursorCondition: WhereOptions = {
       [Op.or]: [
         { createdAt: { [Op.lt]: cursorDate } },
-        {
-          [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }],
-        },
+        { [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }] },
       ],
     };
 
-    Object.assign(where, {
-      [Op.and]: [cursorCondition],
-    });
+    where = appendAnd(where, cursorCondition);
   }
 
   const take = Math.max(1, Math.min(50, Math.floor(filter.limit)));
@@ -235,26 +300,13 @@ export async function listMyApplicationsPaged(
   return { items, nextCursor };
 }
 
-export interface ListApplicationsByVacancyPagedFilter {
-  vacancyId: string;
-  limit: number;
-  cursor?: string;
-  status?: ApplicationStatus;
-  q?: string;
-}
-
-export interface ListApplicationsByVacancyPagedResult {
-  items: ApplicationWithCandidateEntity[];
-  nextCursor: string | null;
-}
-
 export async function listApplicationsByVacancyPaged(
   filter: ListApplicationsByVacancyPagedFilter,
 ): Promise<ListApplicationsByVacancyPagedResult> {
-  const where: WhereOptions = { vacancyId: filter.vacancyId };
+  let where: WhereOptions = { vacancyId: filter.vacancyId };
 
   if (filter.status) {
-    Object.assign(where, { status: filter.status });
+    where = { ...where, status: filter.status };
   }
 
   const cursor = decodeCursor(filter.cursor);
@@ -264,37 +316,38 @@ export async function listApplicationsByVacancyPaged(
     const cursorCondition: WhereOptions = {
       [Op.or]: [
         { createdAt: { [Op.lt]: cursorDate } },
-        {
-          [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }],
-        },
+        { [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }] },
       ],
     };
 
-    Object.assign(where, {
-      [Op.and]: [cursorCondition],
-    });
+    where = appendAnd(where, cursorCondition);
   }
 
   const take = Math.max(1, Math.min(50, Math.floor(filter.limit)));
 
   const q = filter.q?.trim();
-  const includeCandidate = {
+
+  const candidateAttributes: string[] = ["id", "email", "firstName", "lastName", "language"];
+
+  const includeCandidateBase: IncludeOptions = {
     model: Candidate,
     as: "candidate",
-    attributes: ["id", "email", "firstName", "lastName", "language"],
+    attributes: candidateAttributes,
     required: true,
-    ...(q
-      ? {
-          where: {
-            [Op.or]: [
-              { firstName: { [Op.iLike]: `%${q}%` } },
-              { lastName: { [Op.iLike]: `%${q}%` } },
-              { email: { [Op.iLike]: `%${q}%` } },
-            ],
-          } as WhereOptions,
-        }
-      : {}),
   };
+
+  const includeCandidate: IncludeOptions = q
+    ? ({
+        ...includeCandidateBase,
+        where: {
+          [Op.or]: [
+            { firstName: { [Op.iLike]: `%${q}%` } },
+            { lastName: { [Op.iLike]: `%${q}%` } },
+            { email: { [Op.iLike]: `%${q}%` } },
+          ],
+        } satisfies WhereOptions,
+      } as IncludeOptions)
+    : includeCandidateBase;
 
   const rows = await Application.findAll({
     where,

@@ -21,7 +21,7 @@ export async function createVacancyAction(
     const user = req.user;
 
     if (!user || user.userType !== "company") {
-      throw unauthorized({ code: "COMPANY_REQUIRED", message: "Company user required" });
+      throw unauthorized({ code: "COMPANY_REQUIRED", message: "Company access required" });
     }
 
     const vacancy = await createVacancy({

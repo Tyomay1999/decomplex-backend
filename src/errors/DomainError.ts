@@ -6,10 +6,13 @@ export type DomainErrorCode =
   | "USER_NOT_FOUND"
   | "INVALID_CREDENTIALS"
   | "COMPANY_USER_NOT_FOUND"
+  | "VACANCY_NOT_FOUND"
   | "COMPANY_USER_EMAIL_CONFLICT"
   | "APPLICATION_ALREADY_EXISTS"
   | "VALIDATION_FAILED"
+  | "OWNERSHIP_REQUIRED"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "INVALID_ACCESS_TOKEN"
   | "INVALID_REFRESH_TOKEN"
   | "REFRESH_TOKEN_REVOKED"
@@ -47,6 +50,7 @@ export function notFound(
   code: Extract<
     DomainErrorCode,
     | "CANDIDATE_NOT_FOUND"
+    | "VACANCY_NOT_FOUND"
     | "COMPANY_NOT_FOUND"
     | "USER_NOT_FOUND"
     | "COMPANY_USER_NOT_FOUND"
@@ -93,12 +97,22 @@ export function validationFailed(message: string, details?: unknown): DomainErro
   });
 }
 
+export function forbidden(message: string, details?: unknown): DomainError {
+  return new DomainError({
+    code: "FORBIDDEN",
+    message,
+    statusCode: 403,
+    details,
+  });
+}
+
 // 401
 export function unauthorized(params: {
   message: string;
   code?: Extract<
     DomainErrorCode,
     | "UNAUTHORIZED"
+    | "OWNERSHIP_REQUIRED"
     | "INVALID_CREDENTIALS"
     | "INVALID_ACCESS_TOKEN"
     | "INVALID_REFRESH_TOKEN"

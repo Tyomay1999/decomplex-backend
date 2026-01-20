@@ -1,7 +1,9 @@
+import { Op } from "sequelize";
+import type { WhereOptions } from "sequelize";
+import { Application } from "../models/Application";
 import { Vacancy } from "../models/Vacancy";
 import type { VacancyJobType, VacancyStatus } from "../../domain/types";
 import type { DbOptions } from "./types";
-import { Op, WhereOptions } from "sequelize";
 
 export interface VacancyEntity {
   id: string;
@@ -37,13 +39,35 @@ export interface UpdateVacancyDTO {
   salaryTo?: number | null;
   jobType?: VacancyJobType;
   location?: string | null;
-  status?: VacancyStatus;
+  status?: string | null;
 }
 
 export interface ListVacanciesFilter {
   companyId?: string;
   status?: VacancyStatus;
   jobType?: VacancyJobType;
+}
+
+export interface ListVacanciesPagedFilter extends ListVacanciesFilter {
+  q?: string;
+  limit: number;
+  cursor?: string;
+}
+
+type WhereWithAnd = WhereOptions & {
+  [Op.and]?: WhereOptions | WhereOptions[];
+};
+
+export interface ListVacanciesPagedResult {
+  items: VacancyEntity[];
+  nextCursor: string | null;
+}
+
+type CursorPayload = { createdAt: string; id: string };
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(v: unknown): v is UnknownRecord {
+  return typeof v === "object" && v !== null;
 }
 
 function mapVacancyModelToEntity(model: Vacancy): VacancyEntity {
@@ -60,6 +84,57 @@ function mapVacancyModelToEntity(model: Vacancy): VacancyEntity {
     status: model.status,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
+  };
+}
+
+function decodeCursor(raw?: string): CursorPayload | null {
+  if (!raw) return null;
+
+  try {
+    const json = Buffer.from(raw, "base64").toString("utf8");
+    const parsed: unknown = JSON.parse(json);
+
+    if (!isRecord(parsed)) return null;
+
+    const createdAt = parsed.createdAt;
+    const id = parsed.id;
+
+    if (typeof createdAt !== "string" || typeof id !== "string") return null;
+
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(payload: CursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
+}
+
+function appendAnd(where: WhereOptions, condition: WhereOptions): WhereOptions {
+  const current: WhereWithAnd = where;
+  const existing = current[Op.and];
+
+  if (Array.isArray(existing)) {
+    return {
+      ...where,
+      [Op.and]: [...existing, condition],
+    };
+  }
+
+  if (existing) {
+    return {
+      ...where,
+      [Op.and]: [existing, condition],
+    };
+  }
+
+  return {
+    ...where,
+    [Op.and]: [condition],
   };
 }
 
@@ -85,70 +160,45 @@ export async function createVacancy(
   return mapVacancyModelToEntity(vacancy);
 }
 
-export async function getVacancyById(id: string): Promise<VacancyEntity | null> {
+export async function getVacancyById(
+  id: string,
+  opts?: { viewerCandidateId?: string },
+): Promise<(VacancyEntity & { hasApplied?: boolean }) | null> {
   const vacancy = await Vacancy.findByPk(id);
-  return vacancy ? mapVacancyModelToEntity(vacancy) : null;
-}
+  if (!vacancy) return null;
 
-export interface ListVacanciesFilter {
-  companyId?: string;
-  status?: VacancyStatus;
-  jobType?: VacancyJobType;
-}
+  const entity = mapVacancyModelToEntity(vacancy);
 
-type CursorPayload = { createdAt: string; id: string };
+  const viewerCandidateId = opts?.viewerCandidateId;
+  if (!viewerCandidateId) return entity;
 
-function decodeCursor(raw?: string): CursorPayload | null {
-  if (!raw) return null;
+  const exists = await Application.findOne({
+    where: { vacancyId: id, candidateId: viewerCandidateId },
+    attributes: ["id"],
+  });
 
-  try {
-    const json = Buffer.from(raw, "base64").toString("utf8");
-    const parsed = JSON.parse(json) as { createdAt?: unknown; id?: unknown };
-
-    if (typeof parsed.createdAt !== "string" || typeof parsed.id !== "string") return null;
-
-    const date = new Date(parsed.createdAt);
-    if (Number.isNaN(date.getTime())) return null;
-
-    return { createdAt: parsed.createdAt, id: parsed.id };
-  } catch {
-    return null;
-  }
-}
-
-function encodeCursor(payload: CursorPayload): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
-}
-
-export interface ListVacanciesPagedFilter extends ListVacanciesFilter {
-  q?: string;
-  limit: number;
-  cursor?: string;
-}
-
-export interface ListVacanciesPagedResult {
-  items: VacancyEntity[];
-  nextCursor: string | null;
+  return { ...entity, hasApplied: Boolean(exists) };
 }
 
 export async function listVacanciesPaged(
   filter: ListVacanciesPagedFilter,
 ): Promise<ListVacanciesPagedResult> {
-  const where: WhereOptions = {};
+  let where: WhereOptions = {};
 
-  if (filter.companyId) where.companyId = filter.companyId;
-  if (filter.status) where.status = filter.status;
-  if (filter.jobType) where.jobType = filter.jobType;
+  if (filter.companyId) where = { ...where, companyId: filter.companyId };
+  if (filter.status) where = { ...where, status: filter.status };
+  if (filter.jobType) where = { ...where, jobType: filter.jobType };
 
   const q = filter.q?.trim();
   if (q) {
-    Object.assign(where, {
+    where = {
+      ...where,
       [Op.or]: [
         { title: { [Op.iLike]: `%${q}%` } },
         { description: { [Op.iLike]: `%${q}%` } },
         { location: { [Op.iLike]: `%${q}%` } },
       ],
-    });
+    };
   }
 
   const cursor = decodeCursor(filter.cursor);
@@ -158,15 +208,11 @@ export async function listVacanciesPaged(
     const cursorCondition: WhereOptions = {
       [Op.or]: [
         { createdAt: { [Op.lt]: cursorDate } },
-        {
-          [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }],
-        },
+        { [Op.and]: [{ createdAt: cursorDate }, { id: { [Op.lt]: cursor.id } }] },
       ],
     };
 
-    Object.assign(where, {
-      [Op.and]: [cursorCondition],
-    });
+    where = appendAnd(where, cursorCondition);
   }
 
   const take = Math.max(1, Math.min(50, Math.floor(filter.limit)));
@@ -214,7 +260,6 @@ export async function updateVacancyById(
     ...(changes.salaryTo !== undefined ? { salaryTo: changes.salaryTo } : {}),
     ...(changes.jobType !== undefined ? { jobType: changes.jobType } : {}),
     ...(changes.location !== undefined ? { location: changes.location } : {}),
-    ...(changes.status !== undefined ? { status: changes.status } : {}),
   });
 
   await vacancy.save({ transaction: options?.transaction });

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { getVacancyById } from "../../../database/methods/vacancyMethods";
 import { createApplication } from "../../../database/methods/applicationMethods";
-import { conflict, notFound, validationFailed } from "../../../errors/DomainError";
+import { conflict, notFound } from "../../../errors/DomainError";
 
 function isUniqueConstraintError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
@@ -11,6 +11,7 @@ function isUniqueConstraintError(err: unknown): boolean {
   const parent = (maybe.parent ?? maybe.original) as
     | { code?: unknown; constraint?: unknown }
     | undefined;
+
   if (parent && parent.code === "23505") return true;
   if (parent && parent.constraint === "applications_unique_candidate_vacancy") return true;
 
@@ -25,21 +26,9 @@ export async function applyVacancyAction(
   try {
     const vacancyId = req.params.id;
 
-    if (!req.user || req.user.userType !== "candidate") {
-      return next(validationFailed("Candidate user required"));
-    }
-
     const vacancy = await getVacancyById(vacancyId);
     if (!vacancy) {
-      return next(notFound("UNKNOWN_DOMAIN_ERROR", "Vacancy not found"));
-    }
-
-    if (!req.fileInfo?.url) {
-      return next(
-        validationFailed("File was not saved", {
-          field: "file",
-        }),
-      );
+      throw notFound("VACANCY_NOT_FOUND", "Vacancy not found", { id: vacancyId });
     }
 
     const coverLetter = typeof req.body?.coverLetter === "string" ? req.body.coverLetter : null;
@@ -47,8 +36,8 @@ export async function applyVacancyAction(
     try {
       const application = await createApplication({
         vacancyId,
-        candidateId: req.user.id,
-        cvFilePath: req.fileInfo.url,
+        candidateId: req.user!.id,
+        cvFilePath: req.fileInfo!.url,
         coverLetter,
       });
 
@@ -58,11 +47,8 @@ export async function applyVacancyAction(
       });
     } catch (err) {
       if (isUniqueConstraintError(err)) {
-        return next(
-          conflict("APPLICATION_ALREADY_EXISTS", "Application already exists for this vacancy"),
-        );
+        throw conflict("APPLICATION_ALREADY_EXISTS", "Application already exists for this vacancy");
       }
-
       throw err;
     }
   } catch (err) {

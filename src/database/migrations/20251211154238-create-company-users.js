@@ -38,7 +38,7 @@ module.exports = {
         allowNull: true,
       },
       language: {
-        type: DataTypes.ENUM("am", "ru", "en"),
+        type: DataTypes.ENUM("hy", "ru", "en"),
         allowNull: false,
         defaultValue: "en",
       },

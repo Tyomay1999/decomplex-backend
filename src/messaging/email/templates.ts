@@ -15,7 +15,7 @@ export function renderEmailTemplate(payload: EmailJobPayload): RenderedEmail {
     case "AfterVerificationUserEmail": {
       const subject =
         payload.subject ||
-        (language === "am" ? "Գրանցումը հաջողությամբ հաստատված է" : "Registration confirmed");
+        (language === "hy" ? "Գրանցումը հաջողությամբ հաստատված է" : "Registration confirmed");
 
       const html = `
 <!DOCTYPE html>

@@ -51,7 +51,7 @@ export class Candidate extends Model<
           allowNull: false,
         },
         language: {
-          type: DataTypes.ENUM("am", "ru", "en"),
+          type: DataTypes.ENUM("hy", "ru", "en"),
           allowNull: false,
           defaultValue: "en",
         },

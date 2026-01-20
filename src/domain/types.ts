@@ -1,4 +1,4 @@
-export type LocaleCode = "am" | "ru" | "en";
+export type LocaleCode = "hy" | "ru" | "en";
 
 export type CompanyStatus = "active" | "suspended";
 
