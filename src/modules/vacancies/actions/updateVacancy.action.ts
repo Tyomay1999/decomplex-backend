@@ -6,28 +6,29 @@ export async function updateVacancyAction(
   req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
-) {
+): Promise<Response | void> {
   try {
     const user = req.user;
 
     if (!user || user.userType !== "company") {
-      throw unauthorized({ code: "COMPANY_REQUIRED", message: "Company user required" });
+      throw unauthorized({ code: "COMPANY_REQUIRED", message: "Company access required" });
     }
 
     const vacancy = await getVacancyById(req.params.id);
 
     if (!vacancy) {
-      throw notFound("UNKNOWN_DOMAIN_ERROR", "Vacancy not found", { id: req.params.id });
+      throw notFound("VACANCY_NOT_FOUND", "Vacancy not found", { id: req.params.id });
     }
 
     if (vacancy.companyId !== user.companyId) {
-      throw unauthorized({
-        code: "UNAUTHORIZED",
-        message: "You cannot modify vacancies of another company",
-      });
+      throw unauthorized({ code: "OWNERSHIP_REQUIRED", message: "Access denied" });
     }
 
     const updated = await updateVacancyById(req.params.id, req.body);
+
+    if (!updated) {
+      throw notFound("VACANCY_NOT_FOUND", "Vacancy not found", { id: req.params.id });
+    }
 
     return res.status(200).json({
       success: true,

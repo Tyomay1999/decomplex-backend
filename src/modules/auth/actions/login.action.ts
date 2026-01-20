@@ -31,7 +31,7 @@ export async function loginAction(
   next: NextFunction,
 ): Promise<Response | void> {
   try {
-    const { email, password, fingerprint: fingerprintFromBody, rememberUser = true } = req.body;
+    const { email, password, fingerprint: fingerprintFromBody, rememberUser } = req.body;
 
     const fingerprint = fingerprintFromBody ?? req.fingerprint?.hash ?? null;
 

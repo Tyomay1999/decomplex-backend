@@ -25,7 +25,7 @@ module.exports = {
         allowNull: false,
       },
       default_locale: {
-        type: DataTypes.ENUM("am", "ru", "en"),
+        type: DataTypes.ENUM("hy", "ru", "en"),
         allowNull: false,
         defaultValue: "en",
       },

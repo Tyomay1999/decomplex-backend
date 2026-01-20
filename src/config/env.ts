@@ -18,7 +18,7 @@ const envSchema = Joi.object({
   STATIC_DEFAULT_FOLDER: Joi.string().default("images"),
   UPLOAD_MAX_FILE_SIZE_MB: Joi.number().default(10),
 
-  DEFAULT_LOCALE: Joi.string().valid("am", "ru", "en").default("en"),
+  DEFAULT_LOCALE: Joi.string().valid("hy", "ru", "en").default("en"),
 
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default("1d"),

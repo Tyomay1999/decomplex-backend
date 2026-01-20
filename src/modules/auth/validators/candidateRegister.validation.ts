@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import Joi from "joi";
 import { validationFailed } from "../../../errors/DomainError";
 
-const SUPPORTED_LOCALES = ["am", "ru", "en"] as const;
+const SUPPORTED_LOCALES = ["hy", "ru", "en"] as const;
 
 const candidateRegisterSchema = Joi.object({
   email: Joi.string().email().required(),

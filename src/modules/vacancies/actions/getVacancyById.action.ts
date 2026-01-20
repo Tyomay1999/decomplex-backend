@@ -6,14 +6,14 @@ export async function getVacancyByIdAction(
   req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
-) {
+): Promise<Response | void> {
   try {
-    const vacancy = await getVacancyById(req.params.id);
+    const viewerCandidateId = req.user?.userType === "candidate" ? req.user.id : undefined;
+
+    const vacancy = await getVacancyById(req.params.id, { viewerCandidateId });
 
     if (!vacancy) {
-      throw notFound("UNKNOWN_DOMAIN_ERROR", "Vacancy not found", {
-        id: req.params.id,
-      });
+      throw notFound("VACANCY_NOT_FOUND", "Vacancy not found", { id: req.params.id });
     }
 
     return res.status(200).json({

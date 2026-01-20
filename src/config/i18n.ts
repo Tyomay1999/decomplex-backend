@@ -1,6 +1,6 @@
 import { env } from "./env";
 
-export const SUPPORTED_LOCALES = ["en", "am", "ru"] as const;
+export const SUPPORTED_LOCALES = ["en", "hy", "ru"] as const;
 export type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_LOCALE: LocaleCode = SUPPORTED_LOCALES.includes(
