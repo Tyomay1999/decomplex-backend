@@ -1,6 +1,11 @@
-import type { Request, Response, NextFunction } from "express";
-import { getRedisClient } from "../../../messaging/redis/client";
-import { unauthorized } from "../../../errors/DomainError";
+import type { NextFunction, Request, Response } from "express";
+import Joi from "joi";
+import { validationFailed, unauthorized } from "../../../errors/DomainError";
+import { revokeTokens } from "../../../services/authService";
+
+const schema = Joi.object({
+  refreshToken: Joi.string().optional(),
+});
 
 export async function logoutAction(
   req: Request,
@@ -8,9 +13,7 @@ export async function logoutAction(
   next: NextFunction,
 ): Promise<Response | void> {
   try {
-    const user = req.user;
-
-    if (!user) {
+    if (!req.user) {
       return next(
         unauthorized({
           code: "UNAUTHORIZED",
@@ -19,13 +22,14 @@ export async function logoutAction(
       );
     }
 
-    const redis = getRedisClient();
-
-    const { refreshToken } = req.body as { refreshToken?: string };
-
-    if (refreshToken) {
-      await redis.del(`refresh:${refreshToken}`);
+    const { error } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
+    if (error) {
+      throw validationFailed("Invalid logout payload", error.details);
     }
+
+    const fingerprintHash = req.fingerprint?.hash ?? null;
+
+    await revokeTokens(req.user.id, fingerprintHash);
 
     return res.json({
       success: true,

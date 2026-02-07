@@ -3,6 +3,18 @@ import cors from "cors";
 const PROD_ORIGINS = [
   "https://decomplex.com",
   "https://admin.decomplex.com",
+  "http://localhost:3000",
+  "http://localhost:3100",
+  "http://127.0.0.1:3100",
+  "http://192.168.100.4:3000",
+  "http://localhost:8081",
+  "http://192.168.100.4:8081",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+  "http://192.168.100.4:4173",
+  "http://localhost:5173",
+  "http://192.168.100.4:5173",
+  "http://localhost:4000",
 
   "https://tyomay.dev",
   "https://decomplex.tyomay.dev",

@@ -5,7 +5,7 @@ import {
   createCompanyUser,
   CompanyUserInstance,
 } from "../../../database/methods/companyUserMethods";
-import { unauthorized, conflict } from "../../../errors/DomainError";
+import { unauthorized, conflict, forbidden } from "../../../errors/DomainError";
 import type { CompanyUserRole, LocaleCode } from "../../../domain/types";
 
 interface RegisterCompanyUserBody {
@@ -22,9 +22,8 @@ export async function registerCompanyUserAction(
   next: NextFunction,
 ): Promise<void> {
   const authUser = req.user;
-  const companyId = authUser?.userType === "company" ? authUser.companyId : undefined;
 
-  if (!companyId) {
+  if (!authUser || authUser.userType !== "company") {
     return next(
       unauthorized({
         code: "COMPANY_REQUIRED",
@@ -33,6 +32,16 @@ export async function registerCompanyUserAction(
     );
   }
 
+  if (authUser.role !== "admin") {
+    return next(
+      forbidden("Only admin can create company users", {
+        requiredRole: "admin",
+        actualRole: authUser.role,
+      }),
+    );
+  }
+
+  const companyId = authUser.companyId;
   const { email, password, role, position, language } = req.body;
 
   try {

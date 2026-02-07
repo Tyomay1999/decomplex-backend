@@ -1,0 +1,136 @@
+name: decomplex-dev
+
+x-backend-env: &backend_env
+  NODE_ENV: development
+  PORT: "4000"
+  INSTANCE_NAME: "delta"
+
+  DATABASE_URL_DEV: "postgres://postgres:Decomplex5555@postgres:5432/decomplex_dev"
+  DATABASE_URL_TEST: "postgres://postgres:Decomplex5555@postgres:5432/decomplex_test"
+  JWT_SECRET: "dev_jwt_secret_change_me"
+
+  REDIS_ENABLED: "true"
+  REDIS_URL: "redis://redis:6379"
+
+  RABBITMQ_ENABLED: "false"
+  RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+  RABBITMQ_EMAIL_QUEUE: "email_queue"
+
+  LOG_LEVEL: "info"
+  LOG_PRETTY: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: decomplex-postgres-dev
+    environment:
+      POSTGRES_DB: decomplex_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Decomplex5555
+    ports:
+      - "55432:5432"
+    volumes:
+      - pg_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d decomplex_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - devnet
+
+  redis:
+    image: redis:7-alpine
+    container_name: decomplex-redis-dev
+    ports:
+      - "56379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - devnet
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: decomplex-rabbitmq-dev
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - rabbitmq_data_dev:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - devnet
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: decomplex-backend-dev-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *backend_env
+      PORT: "4000"
+    command: ["node", "dist/database/runMigrations.js"]
+    networks:
+      - devnet
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: decomplex-backend-dev
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *backend_env
+    ports:
+      - "4000:4000"
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    container_name: decomplex-backend-dev-seed
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *backend_env
+      PORT: "4000"
+    command: ["node", "dist/database/runSeeders.js"]
+    networks:
+      - devnet
+    profiles: ["seed"]
+    restart: "no"
+
+networks:
+  devnet:
+    driver: bridge
+
+volumes:
+  pg_data_dev:
+  rabbitmq_data_dev:

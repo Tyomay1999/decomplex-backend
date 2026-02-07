@@ -1,4 +1,3 @@
-// src/modules/vacancies/vacancies.routes.ts
 import { Router } from "express";
 import { auth as authMiddleware } from "../../middleware/auth";
 import { fingerprintMiddleware } from "../../middleware/fingerprint";

@@ -20,11 +20,7 @@ type JoiDetail = {
 };
 
 function toIssues(details: JoiDetail[]): JoiDetail[] {
-  return details.map((d) => ({
-    message: d.message,
-    path: d.path,
-    type: d.type,
-  }));
+  return details.map((d) => ({ message: d.message, path: d.path, type: d.type }));
 }
 
 type NormalizedQuery = {
@@ -42,30 +38,21 @@ function pickQuery(value: unknown): NormalizedQuery {
 
   const out: NormalizedQuery = {};
 
-  const companyId = v.companyId;
-  if (typeof companyId === "string") out.companyId = companyId;
+  if (typeof v.companyId === "string") out.companyId = v.companyId;
+  if (v.status === "active" || v.status === "archived") out.status = v.status;
 
-  const status = v.status;
-  if (status === "active" || status === "archived") out.status = status;
-
-  const jobType = v.jobType;
   if (
-    jobType === "full_time" ||
-    jobType === "part_time" ||
-    jobType === "remote" ||
-    jobType === "hybrid"
+    v.jobType === "full_time" ||
+    v.jobType === "part_time" ||
+    v.jobType === "remote" ||
+    v.jobType === "hybrid"
   ) {
-    out.jobType = jobType;
+    out.jobType = v.jobType;
   }
 
-  const q = v.q;
-  if (typeof q === "string") out.q = q;
-
-  const limit = v.limit;
-  if (typeof limit === "number") out.limit = limit;
-
-  const cursor = v.cursor;
-  if (typeof cursor === "string") out.cursor = cursor;
+  if (typeof v.q === "string") out.q = v.q;
+  if (typeof v.limit === "number") out.limit = v.limit;
+  if (typeof v.cursor === "string") out.cursor = v.cursor;
 
   return out;
 }
@@ -78,13 +65,14 @@ export function validateListVacancies(req: Request, _res: Response, next: NextFu
   });
 
   if (error) {
-    return next(
+    next(
       validationFailed("Validation failed", {
         errors: toIssues(error.details as unknown as JoiDetail[]),
       }),
     );
+    return;
   }
 
-  req.query = pickQuery(value) as unknown as Request["query"];
-  return next();
+  req.validatedQuery = pickQuery(value);
+  next();
 }

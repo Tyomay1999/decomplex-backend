@@ -31,9 +31,9 @@ export async function loginAction(
   next: NextFunction,
 ): Promise<Response | void> {
   try {
-    const { email, password, fingerprint: fingerprintFromBody, rememberUser } = req.body;
+    const { email, password, rememberUser } = req.body;
 
-    const fingerprint = fingerprintFromBody ?? req.fingerprint?.hash ?? null;
+    const fingerprint = req.fingerprint?.hash ?? null;
 
     const companyUsers = (await findCompanyUsersByEmail(email, {
       include: ["company"],

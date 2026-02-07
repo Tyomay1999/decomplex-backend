@@ -8,9 +8,6 @@ module.exports = {
     const now = new Date();
     const { QueryTypes } = Sequelize;
 
-    // -----------------------------
-    // Idempotency guard
-    // -----------------------------
     const existing = await queryInterface.sequelize.query(
       `SELECT 1 FROM candidates WHERE email = :email LIMIT 1`,
       {

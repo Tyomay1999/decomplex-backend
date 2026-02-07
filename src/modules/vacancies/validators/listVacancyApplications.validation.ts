@@ -22,11 +22,7 @@ type JoiDetail = {
 };
 
 function toIssues(details: JoiDetail[]): JoiDetail[] {
-  return details.map((d) => ({
-    message: d.message,
-    path: d.path,
-    type: d.type,
-  }));
+  return details.map((d) => ({ message: d.message, path: d.path, type: d.type }));
 }
 
 type NormalizedQuery = {
@@ -38,22 +34,14 @@ type NormalizedQuery = {
 
 function pickQuery(value: unknown): NormalizedQuery {
   if (typeof value !== "object" || value === null) return {};
-
   const v = value as Record<string, unknown>;
 
   const out: NormalizedQuery = {};
 
-  const limit = v.limit;
-  if (typeof limit === "number") out.limit = limit;
-
-  const cursor = v.cursor;
-  if (typeof cursor === "string") out.cursor = cursor;
-
-  const status = v.status;
-  if (typeof status === "string") out.status = status;
-
-  const q = v.q;
-  if (typeof q === "string") out.q = q;
+  if (typeof v.limit === "number") out.limit = v.limit;
+  if (typeof v.cursor === "string") out.cursor = v.cursor;
+  if (typeof v.status === "string") out.status = v.status;
+  if (typeof v.q === "string") out.q = v.q;
 
   return out;
 }
@@ -63,26 +51,38 @@ export function validateListVacancyApplications(
   _res: Response,
   next: NextFunction,
 ): void {
-  const p = paramsSchema.validate(req.params, { abortEarly: false, stripUnknown: true });
+  const p = paramsSchema.validate(req.params, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: false,
+  });
+
   if (p.error) {
-    return next(
+    next(
       validationFailed("Validation failed", {
         errors: toIssues(p.error.details as unknown as JoiDetail[]),
       }),
     );
+    return;
   }
 
-  const q = querySchema.validate(req.query, { abortEarly: false, stripUnknown: true });
+  const q = querySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true,
+  });
+
   if (q.error) {
-    return next(
+    next(
       validationFailed("Validation failed", {
         errors: toIssues(q.error.details as unknown as JoiDetail[]),
       }),
     );
+    return;
   }
 
-  req.params = p.value as unknown as Request["params"];
-  req.query = pickQuery(q.value) as unknown as Request["query"];
+  req.validatedParams = { id: (p.value as { id: string }).id };
+  req.validatedVacancyApplicationsQuery = pickQuery(q.value);
 
-  return next();
+  next();
 }
