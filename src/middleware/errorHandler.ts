@@ -3,10 +3,8 @@ import { httpLogger } from "../lib/logger";
 import { AppError } from "../errors/AppError";
 import { env } from "../config/env";
 import { DomainError } from "../errors/DomainError";
-
-type RequestWithId = Request & {
-  requestId?: string;
-};
+import { DEFAULT_LOCALE } from "../config/i18n";
+import { translateDomainError } from "../i18n/errors";
 
 type ErrorPayload = {
   success: false;
@@ -17,18 +15,20 @@ type ErrorPayload = {
   };
 };
 
-export function errorHandler(err: unknown, req: RequestWithId, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   void _next;
 
   const isDev = env.nodeEnv !== "production";
   const requestId = req.requestId;
 
   if (err instanceof DomainError) {
+    const locale = req.locale ?? DEFAULT_LOCALE;
+
     const payload: ErrorPayload = {
       success: false,
       error: {
         code: err.code,
-        message: err.message,
+        message: translateDomainError(locale, err.code, err.message),
         details: err.details,
       },
     };
@@ -55,7 +55,7 @@ export function errorHandler(err: unknown, req: RequestWithId, res: Response, _n
     code: appError.code,
     details: appError.details,
     originalError:
-      err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
+        err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
   });
 
   const payload: ErrorPayload = {
