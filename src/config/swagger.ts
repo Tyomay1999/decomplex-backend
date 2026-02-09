@@ -1,6 +1,26 @@
-import swaggerJsdoc, { Options } from "swagger-jsdoc";
+import type { OpenAPIV3 } from "openapi-types";
 
-const swaggerDefinition: Options["definition"] = {
+import { commonSchemas } from "../docs/schemas";
+import { commonResponses } from "../docs/responses";
+
+import { authPaths, authSchemas } from "../modules/auth/docs";
+import { vacanciesPaths, vacanciesSchemas } from "../modules/vacancies/docs";
+import { applicationsPaths, applicationsSchemas } from "../modules/applications/docs";
+
+function mergePaths(...items: OpenAPIV3.PathsObject[]): OpenAPIV3.PathsObject {
+  return items.reduce<OpenAPIV3.PathsObject>((acc, cur) => ({ ...acc, ...cur }), {});
+}
+
+function mergeSchemas(
+  ...items: Array<Record<string, OpenAPIV3.SchemaObject>>
+): Record<string, OpenAPIV3.SchemaObject> {
+  return items.reduce<Record<string, OpenAPIV3.SchemaObject>>(
+    (acc, cur) => ({ ...acc, ...cur }),
+    {},
+  );
+}
+
+export const swaggerSpec: OpenAPIV3.Document = {
   openapi: "3.0.0",
   info: {
     title: "Decomplex Event Management Platform API",
@@ -13,6 +33,7 @@ const swaggerDefinition: Options["definition"] = {
       description: "API base path",
     },
   ],
+  tags: [{ name: "Auth" }, { name: "Vacancies" }, { name: "Applications" }],
   components: {
     securitySchemes: {
       BearerAuth: {
@@ -21,63 +42,8 @@ const swaggerDefinition: Options["definition"] = {
         bearerFormat: "JWT",
       },
     },
-    schemas: {
-      User: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid" },
-          email: { type: "string", format: "email" },
-          firstName: { type: "string", nullable: true },
-          lastName: { type: "string", nullable: true },
-          role: {
-            type: "string",
-            enum: ["platform_admin", "company_owner", "company_admin", "company_member"],
-          },
-          status: {
-            type: "string",
-            enum: ["active", "pending", "blocked"],
-          },
-          lastLoginAt: { type: "string", format: "date-time", nullable: true },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
-        },
-        required: ["id", "email", "role", "status", "createdAt", "updatedAt"],
-      },
-
-      Company: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid" },
-          name: { type: "string" },
-          slug: { type: "string" },
-          status: {
-            type: "string",
-            enum: ["active", "blocked"],
-          },
-          ownerUserId: { type: "string", format: "uuid", nullable: true },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
-        },
-        required: ["id", "name", "slug", "status", "createdAt", "updatedAt"],
-      },
-
-      ErrorResponse: {
-        type: "object",
-        properties: {
-          statusCode: { type: "integer" },
-          message: { type: "string" },
-          requestId: { type: "string" },
-        },
-        required: ["statusCode", "message", "requestId"],
-      },
-    },
+    schemas: mergeSchemas(commonSchemas, authSchemas, vacanciesSchemas, applicationsSchemas),
+    responses: commonResponses,
   },
-  paths: {},
+  paths: mergePaths(authPaths, vacanciesPaths, applicationsPaths),
 };
-
-const swaggerOptions: Options = {
-  definition: swaggerDefinition,
-  apis: ["./src/routes/**/*.ts", "./src/docs/**/*.yaml"],
-};
-
-export const swaggerSpec = swaggerJsdoc(swaggerOptions);

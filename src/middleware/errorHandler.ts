@@ -8,6 +8,7 @@ import { translateDomainError } from "../i18n/errors";
 
 type ErrorPayload = {
   success: false;
+  requestId: string;
   error: {
     code: string;
     message: string;
@@ -19,13 +20,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   void _next;
 
   const isDev = env.nodeEnv !== "production";
-  const requestId = req.requestId;
+  const requestId = typeof req.requestId === "string" ? req.requestId : "unknown";
 
   if (err instanceof DomainError) {
     const locale = req.locale ?? DEFAULT_LOCALE;
 
     const payload: ErrorPayload = {
       success: false,
+      requestId,
       error: {
         code: err.code,
         message: translateDomainError(locale, err.code, err.message),
@@ -55,11 +57,12 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     code: appError.code,
     details: appError.details,
     originalError:
-        err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
+      err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
   });
 
   const payload: ErrorPayload = {
     success: false,
+    requestId,
     error: {
       code: appError?.code || "",
       message: appError.message,
