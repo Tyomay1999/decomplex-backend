@@ -14,6 +14,7 @@ import { securityHeadersMiddleware } from "./middleware/security";
 import { localeMiddleware } from "./middleware/locale";
 import { fingerprintMiddleware } from "./middleware/fingerprint";
 import { notFoundHandler } from "./middleware/notFoundHandler";
+import { instanceHeaderMiddleware } from "./middleware/instanceHeader";
 import { errorHandler } from "./middleware/errorHandler";
 
 import { apiRouter } from "./routes";
@@ -44,6 +45,7 @@ export function createApp() {
   app.use(securityHeadersMiddleware);
   app.use(localeMiddleware);
   app.use(fingerprintMiddleware);
+  app.use(instanceHeaderMiddleware);
 
   if (env.nodeEnv !== "production") {
     app.use(

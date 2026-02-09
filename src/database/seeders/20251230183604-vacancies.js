@@ -123,9 +123,6 @@ module.exports = {
     const now = new Date();
     const { QueryTypes } = Sequelize;
 
-    // -----------------------------
-    // Load required FK owners
-    // -----------------------------
     const companies = await queryInterface.sequelize.query(
       `SELECT id, email, name FROM companies WHERE email IN (:emails)`,
       {
@@ -140,7 +137,6 @@ module.exports = {
     const company2 = (companies || []).find((c) => c.email === "contact@acme-recruiting.com");
 
     if (!company1 || !company2) {
-      // Seed-01 not executed yet; avoid partial inserts
       return;
     }
 
@@ -159,10 +155,6 @@ module.exports = {
 
     if (!recruiter1 || !admin2) return;
 
-    // -----------------------------
-    // Idempotency guard
-    // If there is at least one vacancy for these companies, do nothing.
-    // -----------------------------
     const existingVac = await queryInterface.sequelize.query(
       `SELECT 1 FROM vacancies WHERE company_id IN (:companyIds) LIMIT 1`,
       {
@@ -173,9 +165,6 @@ module.exports = {
 
     if (Array.isArray(existingVac) && existingVac.length > 0) return;
 
-    // -----------------------------
-    // Vacancy generation
-    // -----------------------------
     const titles = [
       "Senior Node.js Engineer",
       "React Frontend Developer",
@@ -285,7 +274,6 @@ module.exports = {
 
     const vacancyIds = (vacancies || []).map((v) => v.id);
 
-    // Delete applications linked to these vacancies first (FK safety)
     if (vacancyIds.length) {
       await queryInterface.bulkDelete("applications", { vacancy_id: vacancyIds }, {});
       await queryInterface.bulkDelete("vacancies", { id: vacancyIds }, {});

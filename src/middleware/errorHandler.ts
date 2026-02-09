@@ -8,11 +8,33 @@ type RequestWithId = Request & {
   requestId?: string;
 };
 
+type ErrorPayload = {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+};
+
 export function errorHandler(err: unknown, req: RequestWithId, res: Response, _next: NextFunction) {
   void _next;
 
   const isDev = env.nodeEnv !== "production";
   const requestId = req.requestId;
+
+  if (err instanceof DomainError) {
+    const payload: ErrorPayload = {
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      },
+    };
+
+    return res.status(err.statusCode).json(payload);
+  }
 
   let appError: AppError;
 
@@ -26,16 +48,6 @@ export function errorHandler(err: unknown, req: RequestWithId, res: Response, _n
     });
   }
 
-  if (err instanceof DomainError) {
-    return res.status(err.statusCode).json({
-      error: {
-        code: err.code,
-        message: err.message,
-        details: err.details,
-      },
-    });
-  }
-
   httpLogger.error({
     msg: "Unhandled error in request",
     requestId,
@@ -46,16 +58,17 @@ export function errorHandler(err: unknown, req: RequestWithId, res: Response, _n
       err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
   });
 
-  const responseBody: Record<string, unknown> = {
+  const payload: ErrorPayload = {
     success: false,
-    message: appError.message,
-    code: appError.code,
-    requestId,
+    error: {
+      code: appError?.code || "",
+      message: appError.message,
+    },
   };
 
-  if (isDev && appError.details) {
-    responseBody.details = appError.details;
+  if (isDev && typeof appError.details !== "undefined") {
+    payload.error.details = appError.details;
   }
 
-  res.status(appError.statusCode).json(responseBody);
+  return res.status(appError.statusCode).json(payload);
 }

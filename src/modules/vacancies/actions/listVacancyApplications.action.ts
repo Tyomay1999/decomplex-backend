@@ -4,21 +4,13 @@ import { listApplicationsByVacancyPaged } from "../../../database/methods/applic
 import { notFound, unauthorized } from "../../../errors/DomainError";
 import type { ApplicationStatus } from "../../../domain/types";
 
-interface ListVacancyApplicationsQuery {
-  limit?: string;
-  cursor?: string;
-  status?: ApplicationStatus;
-  q?: string;
-}
-
-function toSafeLimit(raw?: string): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return 20;
-  return Math.min(50, Math.floor(n));
+function toSafeLimit(raw?: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) return 20;
+  return Math.min(50, Math.floor(raw));
 }
 
 export async function listVacancyApplicationsAction(
-  req: Request<{ id: string }, unknown, unknown, ListVacancyApplicationsQuery>,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<Response | void> {
@@ -27,7 +19,10 @@ export async function listVacancyApplicationsAction(
       throw unauthorized({ code: "COMPANY_REQUIRED", message: "Company access required" });
     }
 
-    const vacancyId = req.params.id;
+    const vacancyId = req.validatedParams?.id;
+    if (!vacancyId) {
+      throw notFound("VACANCY_NOT_FOUND", "Vacancy not found", { id: null });
+    }
 
     const vacancy = await getVacancyById(vacancyId);
     if (!vacancy) {
@@ -38,22 +33,20 @@ export async function listVacancyApplicationsAction(
       throw unauthorized({ code: "OWNERSHIP_REQUIRED", message: "Access denied" });
     }
 
-    const limit = toSafeLimit(req.query.limit);
+    const q = req.validatedVacancyApplicationsQuery ?? {};
+    const limit = toSafeLimit(q.limit);
 
     const { items, nextCursor } = await listApplicationsByVacancyPaged({
       vacancyId,
       limit,
-      cursor: req.query.cursor,
-      status: req.query.status,
-      q: req.query.q,
+      cursor: q.cursor,
+      status: q.status as ApplicationStatus | undefined,
+      q: q.q,
     });
 
     return res.status(200).json({
       success: true,
-      data: {
-        items,
-        nextCursor,
-      },
+      data: { items, nextCursor },
     });
   } catch (err) {
     next(err);

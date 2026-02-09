@@ -2,6 +2,9 @@ node_modules
 .idea
 dist
 .env
+.env.*
+!.env.example
+!.env.*.example
 logs
 file-tree-src.txt
 static

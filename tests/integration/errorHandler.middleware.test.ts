@@ -42,8 +42,22 @@ const createMockRes = (): { res: Response; state: MockResState } => {
 
 const next: NextFunction = () => undefined;
 
+function pickError(payload: JsonValue | undefined): Record<string, unknown> {
+  if (!isObject(payload)) throw new Error("payload is not object");
+  const p = payload as Record<string, unknown>;
+
+  if (!("success" in p)) throw new Error("missing success");
+  if (p.success !== false) throw new Error("success is not false");
+
+  if (!("error" in p)) throw new Error("missing error");
+  const e = p.error;
+
+  if (!isObject(e)) throw new Error("error is not object");
+  return e;
+}
+
 describe("global errorHandler middleware", () => {
-  it("DomainError -> statusCode + { error: { code, message, details } }", () => {
+  it("DomainError -> statusCode + { success:false, error: { code, message, details } }", () => {
     const req = createMockReq("r-1");
     const { res, state } = createMockRes();
 
@@ -58,21 +72,14 @@ describe("global errorHandler middleware", () => {
 
     expect(state.statusCode).toBe(422);
 
-    expect(isObject(state.payload)).toBe(true);
-    if (!isObject(state.payload)) throw new Error("payload is not object");
-
-    expect("error" in state.payload).toBe(true);
-    const e = (state.payload as Record<string, unknown>).error;
-
-    expect(isObject(e)).toBe(true);
-    if (!isObject(e)) throw new Error("error is not object");
+    const e = pickError(state.payload);
 
     expect(e.code).toBe("VALIDATION_FAILED");
     expect(e.message).toBe("Validation failed");
     expect(e.details).toEqual({ field: "email" });
   });
 
-  it("AppError -> statusCode + { success:false, message, code, requestId }", () => {
+  it("AppError -> statusCode + { success:false, error: { code, message } }", () => {
     const req = createMockReq("r-2");
     const { res, state } = createMockRes();
 
@@ -82,18 +89,13 @@ describe("global errorHandler middleware", () => {
 
     expect(state.statusCode).toBe(418);
 
-    expect(isObject(state.payload)).toBe(true);
-    if (!isObject(state.payload)) throw new Error("payload is not object");
+    const e = pickError(state.payload);
 
-    const p = state.payload as Record<string, unknown>;
-
-    expect(p.success).toBe(false);
-    expect(p.message).toBe("Boom");
-    expect(p.code).toBe("TEAPOT");
-    expect(p.requestId).toBe("r-2");
+    expect(e.code).toBe("TEAPOT");
+    expect(e.message).toBe("Boom");
   });
 
-  it("unknown Error -> 500 + safe body shape", () => {
+  it("unknown Error -> 500 + { success:false, error: { code, message } }", () => {
     const req = createMockReq("r-3");
     const { res, state } = createMockRes();
 
@@ -103,14 +105,9 @@ describe("global errorHandler middleware", () => {
 
     expect(state.statusCode).toBe(500);
 
-    expect(isObject(state.payload)).toBe(true);
-    if (!isObject(state.payload)) throw new Error("payload is not object");
+    const e = pickError(state.payload);
 
-    const p = state.payload as Record<string, unknown>;
-
-    expect(p.success).toBe(false);
-    expect(typeof p.message).toBe("string");
-    expect(p.code).toBe("INTERNAL_ERROR");
-    expect(p.requestId).toBe("r-3");
+    expect(e.code).toBe("INTERNAL_ERROR");
+    expect(e.message).toBe("Internal server error");
   });
 });

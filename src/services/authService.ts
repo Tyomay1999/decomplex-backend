@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { jwtConfig, JwtUserPayload } from "../config/jwt";
 import {
@@ -114,7 +115,12 @@ export async function issueAuthTokens(
     return { accessToken };
   }
 
-  const refreshToken = jwt.sign(payload, jwtConfig.refreshTokenSecret, {
+  const refreshPayload: JwtUserPayload = {
+    ...payload,
+    jti: crypto.randomUUID(),
+  };
+
+  const refreshToken = jwt.sign(refreshPayload, jwtConfig.refreshTokenSecret, {
     expiresIn: jwtConfig.refreshTokenTtlSec,
   });
 
@@ -187,6 +193,8 @@ export async function rotateRefreshToken(
       message: "Refresh token no longer valid",
     });
   }
+
+  await deleteRefreshToken(userId, fingerprint);
 
   if (decoded.userType === "candidate") {
     assertCandidateFields(decoded);

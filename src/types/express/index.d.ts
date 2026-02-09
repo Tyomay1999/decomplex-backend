@@ -1,6 +1,15 @@
 import type { UploadedFile, FileArray } from "express-fileupload";
 import type { LocaleCode } from "../../config/i18n";
 
+type NormalizedVacanciesQuery = {
+  companyId?: string;
+  status?: "active" | "archived";
+  jobType?: "full_time" | "part_time" | "remote" | "hybrid";
+  q?: string;
+  limit?: number;
+  cursor?: string;
+};
+
 declare global {
   namespace Express {
     interface AuthPayload {
@@ -44,6 +53,17 @@ declare global {
       referer?: string;
     }
 
+    type ValidatedVacancyApplicationsParams = {
+      id: string;
+    };
+
+    type ValidatedVacancyApplicationsQuery = {
+      limit?: number;
+      cursor?: string;
+      status?: string;
+      q?: string;
+    };
+
     interface Request {
       auth?: AuthPayload;
       user?: UserPayload;
@@ -52,6 +72,9 @@ declare global {
       requestId?: string;
       locale?: LocaleCode;
       fingerprint?: RequestFingerprint;
+      validatedQuery?: NormalizedVacanciesQuery;
+      validatedParams?: ValidatedVacancyApplicationsParams;
+      validatedVacancyApplicationsQuery?: ValidatedVacancyApplicationsQuery;
     }
   }
 }

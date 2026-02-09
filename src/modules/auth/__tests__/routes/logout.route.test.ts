@@ -2,7 +2,6 @@ import type { NextFunction, Request, Response, RequestHandler } from "express";
 import { Router } from "express";
 
 import * as authService from "../../../../services/authService";
-import * as redisClient from "../../../../messaging/redis/client";
 
 import { authRouter } from "../../auth.routes";
 import { fingerprintMiddleware } from "../../../../middleware/fingerprint";
@@ -10,14 +9,9 @@ import { fingerprintMiddleware } from "../../../../middleware/fingerprint";
 import { makeNext, makeReq, makeRes } from "../../../../../tests/helpers/http";
 
 jest.mock("../../../../services/authService");
-jest.mock("../../../../messaging/redis/client");
 
 const verifyAccessTokenMock = jest.mocked(authService.verifyAccessToken);
-const getRedisClientMock = jest.mocked(redisClient.getRedisClient);
-
-type RedisLike = {
-  del: (key: string) => Promise<number>;
-};
+const revokeTokensMock = jest.mocked(authService.revokeTokens);
 
 function makeApiRouter(): Router {
   const router = Router();
@@ -81,7 +75,7 @@ beforeEach(() => {
 });
 
 describe("PATCH /auth/logout (router-level)", () => {
-  test("deletes refresh key when refreshToken provided", async () => {
+  test("revokes tokens when refreshToken provided", async () => {
     verifyAccessTokenMock.mockReturnValue({
       userType: "candidate",
       userId: "u1",
@@ -90,11 +84,7 @@ describe("PATCH /auth/logout (router-level)", () => {
       language: "en",
     });
 
-    const redis: RedisLike = {
-      del: jest.fn().mockResolvedValue(1),
-    };
-
-    getRedisClientMock.mockReturnValue(redis as never);
+    revokeTokensMock.mockResolvedValue();
 
     const router = makeApiRouter();
 
@@ -117,8 +107,8 @@ describe("PATCH /auth/logout (router-level)", () => {
 
     expect(next).toHaveBeenCalledTimes(0);
 
-    expect(redis.del).toHaveBeenCalledTimes(1);
-    expect(redis.del).toHaveBeenCalledWith("refresh:r1");
+    expect(revokeTokensMock).toHaveBeenCalledTimes(1);
+    expect(revokeTokensMock).toHaveBeenCalledWith("u1", expect.anything());
 
     expect(res.json).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledWith(
@@ -139,11 +129,7 @@ describe("PATCH /auth/logout (router-level)", () => {
       position: null,
     });
 
-    const redis: RedisLike = {
-      del: jest.fn().mockResolvedValue(0),
-    };
-
-    getRedisClientMock.mockReturnValue(redis as never);
+    revokeTokensMock.mockResolvedValue();
 
     const router = makeApiRouter();
 
@@ -164,7 +150,8 @@ describe("PATCH /auth/logout (router-level)", () => {
 
     expect(next).toHaveBeenCalledTimes(0);
 
-    expect(redis.del).toHaveBeenCalledTimes(0);
+    expect(revokeTokensMock).toHaveBeenCalledTimes(1);
+    expect(revokeTokensMock).toHaveBeenCalledWith("u1", expect.anything());
 
     expect(res.json).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledWith(
@@ -192,7 +179,7 @@ describe("PATCH /auth/logout (router-level)", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith(expect.any(Error));
 
-    expect(getRedisClientMock).toHaveBeenCalledTimes(0);
+    expect(revokeTokensMock).toHaveBeenCalledTimes(0);
     expect(res.json).toHaveBeenCalledTimes(0);
   });
 });

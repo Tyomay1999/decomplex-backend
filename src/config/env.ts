@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import Joi from "joi";
 
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || ".env" });
 
 const envSchema = Joi.object({
   NODE_ENV: Joi.string().valid("development", "test", "production").default("development"),
@@ -45,7 +45,6 @@ const envSchema = Joi.object({
     }),
   RABBITMQ_EMAIL_QUEUE: Joi.string().default("email_queue"),
 
-  // DB: Render DATABASE_URL
   DATABASE_URL: Joi.string().uri().optional(),
 
   DATABASE_URL_PROD: Joi.string().uri().optional(),

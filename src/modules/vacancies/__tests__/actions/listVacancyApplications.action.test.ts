@@ -1,10 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ParsedQs } from "qs";
 import { listVacancyApplicationsAction } from "../../actions/listVacancyApplications.action";
 import { makeNext, makeReq, makeRes } from "../../../../../tests/helpers/http";
 import * as vacancyMethods from "../../../../database/methods/vacancyMethods";
 import * as applicationMethods from "../../../../database/methods/applicationMethods";
 import type { ApplicationStatus } from "../../../../domain/types";
+import { VacancyEntity } from "../../../../database/methods/vacancyMethods";
+import { ApplicationWithCandidateEntity } from "../../../../database/methods/applicationMethods";
 
 jest.mock("../../../../database/methods/vacancyMethods");
 jest.mock("../../../../database/methods/applicationMethods");
@@ -14,22 +15,93 @@ const listApplicationsByVacancyPagedMock = jest.mocked(
   applicationMethods.listApplicationsByVacancyPaged,
 );
 
-type Q = ParsedQs & {
-  limit?: string;
+type Role = "admin" | "recruiter";
+type Lang = "en" | "hy" | "ru";
+
+type UserCompany = {
+  userType: "company";
+  id: string;
+  companyId: string;
+  email: string;
+  role: Role;
+  language: Lang;
+  position?: string;
+};
+
+type ValidatedParams = { id: string };
+
+type ValidatedQuery = {
+  limit?: number;
   cursor?: string;
   status?: ApplicationStatus;
   q?: string;
 };
 
-function makeR(
-  id: string,
-  user?: unknown,
-  query?: Q,
-): Request<{ id: string }, unknown, unknown, Q> {
-  const req = makeReq() as Request<{ id: string }, unknown, unknown, Q>;
-  req.params = { id };
-  if (user) (req as unknown as { user: unknown }).user = user;
-  if (query) req.query = query;
+type ReqExt = Request & {
+  user?: UserCompany;
+  validatedParams?: ValidatedParams;
+  validatedVacancyApplicationsQuery?: ValidatedQuery;
+};
+
+type AwaitedValue<T> = T extends Promise<infer U> ? U : T;
+
+type VacancyReturned = NonNullable<AwaitedValue<ReturnType<typeof vacancyMethods.getVacancyById>>>;
+type ApplicationsPage = AwaitedValue<
+  ReturnType<typeof applicationMethods.listApplicationsByVacancyPaged>
+>;
+type ApplicationItem = ApplicationsPage["items"][number];
+
+function makeVacancy(overrides?: Partial<VacancyEntity>): VacancyEntity {
+  const now = new Date();
+  const base: VacancyEntity = {
+    id: "v1",
+    companyId: "c1",
+    createdById: null,
+    title: "t",
+    description: "d",
+    salaryFrom: null,
+    salaryTo: null,
+    jobType: "remote",
+    location: null,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  return { ...base, ...(overrides ?? {}) };
+}
+
+function makeApplicationItem(
+  overrides?: Partial<ApplicationWithCandidateEntity>,
+): ApplicationWithCandidateEntity {
+  const now = new Date();
+  const base: ApplicationWithCandidateEntity = {
+    id: "a1",
+    vacancyId: "v1",
+    candidateId: "cand1",
+    status: "applied",
+    cvFilePath: "cv.pdf",
+    createdAt: now,
+    updatedAt: now,
+    coverLetter: null,
+    candidate: {
+      id: "cand1",
+      email: "a@b.com",
+      firstName: "A",
+      lastName: "B",
+      language: "en",
+    },
+  };
+  return { ...base, ...(overrides ?? {}) };
+}
+
+function makeR(id: string, user?: UserCompany, query?: ValidatedQuery): ReqExt {
+  const req = makeReq() as unknown as ReqExt;
+
+  req.validatedParams = { id };
+
+  if (user) req.user = user;
+  if (query) req.validatedVacancyApplicationsQuery = query;
+
   return req;
 }
 
@@ -39,11 +111,24 @@ beforeEach(() => {
 
 describe("listVacancyApplicationsAction", () => {
   test("returns 200 with items and nextCursor", async () => {
-    getVacancyByIdMock.mockResolvedValue({ id: "v", companyId: "c" } as never);
-    listApplicationsByVacancyPagedMock.mockResolvedValue({
-      items: [{ id: "a" }],
+    const vacancyBase = makeVacancy({ id: "v", companyId: "c" });
+
+    const vacancy: VacancyReturned = { ...(vacancyBase as VacancyReturned), hasApplied: undefined };
+
+    const item = makeApplicationItem({
+      id: "a",
+      vacancyId: "11111111-1111-4111-8111-111111111111",
+      candidateId: "cand1",
+      status: "applied",
+    });
+
+    const page: ApplicationsPage = {
+      items: [item as unknown as ApplicationItem],
       nextCursor: "n",
-    } as never);
+    };
+
+    getVacancyByIdMock.mockResolvedValue(vacancy);
+    listApplicationsByVacancyPagedMock.mockResolvedValue(page);
 
     const req = makeR(
       "11111111-1111-4111-8111-111111111111",
@@ -56,14 +141,14 @@ describe("listVacancyApplicationsAction", () => {
         email: "e",
       },
       {
-        limit: "10",
+        limit: 10,
         cursor: "c",
         status: "applied",
         q: "x",
       },
     );
 
-    const res = makeRes() as Response;
+    const res = makeRes() as unknown as Response;
     const next = makeNext() as unknown as NextFunction;
 
     await listVacancyApplicationsAction(req, res, next);
@@ -85,7 +170,28 @@ describe("listVacancyApplicationsAction", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      data: { items: [{ id: "a" }], nextCursor: "n" },
+      data: {
+        items: [
+          expect.objectContaining({
+            id: "a",
+            vacancyId: "11111111-1111-4111-8111-111111111111",
+            candidateId: "cand1",
+            status: "applied",
+            cvFilePath: "cv.pdf",
+            coverLetter: null,
+            createdAt: expect.any(Date),
+            updatedAt: expect.any(Date),
+            candidate: expect.objectContaining({
+              id: "cand1",
+              email: "a@b.com",
+              firstName: "A",
+              lastName: "B",
+              language: "en",
+            }),
+          }),
+        ],
+        nextCursor: "n",
+      },
     });
   });
 
@@ -101,7 +207,7 @@ describe("listVacancyApplicationsAction", () => {
       email: "e",
     });
 
-    const res = makeRes() as Response;
+    const res = makeRes() as unknown as Response;
     const next = makeNext() as unknown as NextFunction;
 
     await listVacancyApplicationsAction(req, res, next);
@@ -113,7 +219,10 @@ describe("listVacancyApplicationsAction", () => {
   });
 
   test("calls next(error) when ownership mismatch", async () => {
-    getVacancyByIdMock.mockResolvedValue({ id: "v", companyId: "other" } as never);
+    const vacancyBase = makeVacancy({ id: "v", companyId: "other" });
+    const vacancy: VacancyReturned = { ...(vacancyBase as VacancyReturned), hasApplied: undefined };
+
+    getVacancyByIdMock.mockResolvedValue(vacancy);
 
     const req = makeR("11111111-1111-4111-8111-111111111111", {
       userType: "company",
@@ -124,7 +233,7 @@ describe("listVacancyApplicationsAction", () => {
       email: "e",
     });
 
-    const res = makeRes() as Response;
+    const res = makeRes() as unknown as Response;
     const next = makeNext() as unknown as NextFunction;
 
     await listVacancyApplicationsAction(req, res, next);

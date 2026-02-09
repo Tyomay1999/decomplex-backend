@@ -10,6 +10,7 @@ export type JwtCompanyUserPayload = {
   language: LocaleCode;
   position?: string | null;
   fingerprint?: string | null;
+  jti?: string;
 };
 
 export type JwtCandidatePayload = {
@@ -19,6 +20,7 @@ export type JwtCandidatePayload = {
   role: "candidate";
   language: LocaleCode;
   fingerprint?: string | null;
+  jti?: string;
 };
 
 export type JwtUserPayload = JwtCompanyUserPayload | JwtCandidatePayload;

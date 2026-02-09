@@ -8,9 +8,6 @@ module.exports = {
     const now = new Date();
     const { QueryTypes } = Sequelize;
 
-    // -----------------------------
-    // Idempotency guard
-    // -----------------------------
     const existing = await queryInterface.sequelize.query(
       `SELECT 1 FROM companies WHERE email = :email LIMIT 1`,
       {
@@ -21,15 +18,9 @@ module.exports = {
 
     if (Array.isArray(existing) && existing.length > 0) return;
 
-    // -----------------------------
-    // Passwords
-    // -----------------------------
     const commonPassword = "Password123!";
     const companyPasswordHash = await bcrypt.hash(commonPassword, 10);
 
-    // -----------------------------
-    // IDs
-    // -----------------------------
     const company1Id = uuid();
     const company2Id = uuid();
 
@@ -37,9 +28,6 @@ module.exports = {
     const company1RecruiterId = uuid();
     const company2AdminId = uuid();
 
-    // -----------------------------
-    // Insert companies
-    // -----------------------------
     await queryInterface.bulkInsert("companies", [
       {
         id: company1Id,
@@ -63,9 +51,6 @@ module.exports = {
       },
     ]);
 
-    // -----------------------------
-    // Insert company users
-    // -----------------------------
     await queryInterface.bulkInsert("company_users", [
       {
         id: company1AdminId,

@@ -8,6 +8,7 @@ export type MakeReqOptions = {
   query?: Record<string, unknown>;
   params?: Record<string, string>;
   fingerprintHash?: string | null;
+  fingerprint?: { hash: string };
   user?: unknown;
   ip?: string;
 };
