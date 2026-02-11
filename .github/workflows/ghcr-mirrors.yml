@@ -1,0 +1,42 @@
+name: Mirror Infra images to GHCR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-mirrors
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, tag, push Postgres
+        run: |
+          docker pull postgres:16-alpine
+          docker tag postgres:16-alpine ghcr.io/tyomay1999/decomplex-postgres:16-alpine
+          docker push ghcr.io/tyomay1999/decomplex-postgres:16-alpine
+
+      - name: Pull, tag, push Redis
+        run: |
+          docker pull redis:7-alpine
+          docker tag redis:7-alpine ghcr.io/tyomay1999/decomplex-redis:7-alpine
+          docker push ghcr.io/tyomay1999/decomplex-redis:7-alpine
+
+      - name: Pull, tag, push RabbitMQ
+        run: |
+          docker pull rabbitmq:3-management-alpine
+          docker tag rabbitmq:3-management-alpine ghcr.io/tyomay1999/decomplex-rabbitmq:3-management-alpine
+          docker push ghcr.io/tyomay1999/decomplex-rabbitmq:3-management-alpine

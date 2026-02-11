@@ -17,13 +17,14 @@ export async function initDatabase(): Promise<void> {
     return;
   }
 
+  const dialectOptions = env.dbSslEnabled
+    ? { ssl: { require: true, rejectUnauthorized: env.dbSslRejectUnauthorized } }
+    : undefined;
+
   sequelize = new Sequelize(env.databaseUrl, {
     dialect: "postgres",
     logging: env.nodeEnv === "development" ? (msg) => logger.debug({ msg }, "Sequelize") : false,
-    dialectOptions:
-      env.nodeEnv === "production"
-        ? { ssl: { require: true, rejectUnauthorized: false } }
-        : undefined,
+    dialectOptions,
   });
 
   initModels(sequelize);

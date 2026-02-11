@@ -77,6 +77,9 @@ const envSchema = Joi.object({
   SMTP_PORT: Joi.number().default(587),
   SMTP_SECURE: Joi.boolean().default(false),
   SMTP_FROM_NAME: Joi.string().default("Decomplex Platform"),
+
+  DB_SSL_ENABLED: Joi.boolean().default(false),
+  DB_SSL_REJECT_UNAUTHORIZED: Joi.boolean().default(false),
 }).unknown(true);
 
 const { value: envVars, error } = envSchema.validate(process.env, {
@@ -134,4 +137,6 @@ export const env = {
   smtpFromEmail: envVars.SMTP_FROM_EMAIL as string,
 
   databaseUrl: resolveDatabaseUrl(envVars.NODE_ENV),
+  dbSslEnabled: envVars.DB_SSL_ENABLED as boolean,
+  dbSslRejectUnauthorized: envVars.DB_SSL_REJECT_UNAUTHORIZED as boolean,
 };
