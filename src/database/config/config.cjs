@@ -6,6 +6,18 @@ function requireEnv(name) {
   return value;
 }
 
+function toBool(value, fallback) {
+  if (value === undefined) return fallback;
+  return String(value).toLowerCase() === "true";
+}
+
+const dbSslEnabled = toBool(process.env.DB_SSL_ENABLED, false);
+const dbSslRejectUnauthorized = toBool(process.env.DB_SSL_REJECT_UNAUTHORIZED, false);
+
+const productionDialectOptions = dbSslEnabled
+  ? { ssl: { require: true, rejectUnauthorized: dbSslRejectUnauthorized } }
+  : undefined;
+
 module.exports = {
   development: {
     url: requireEnv("DATABASE_URL_DEV"),
@@ -18,8 +30,6 @@ module.exports = {
   production: {
     url: requireEnv("DATABASE_URL"),
     dialect: "postgres",
-    dialectOptions: {
-      ssl: { require: true, rejectUnauthorized: false },
-    },
+    ...(productionDialectOptions ? { dialectOptions: productionDialectOptions } : {}),
   },
 };
